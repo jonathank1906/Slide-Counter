@@ -5,6 +5,8 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 
     <style>
         /* --- LAYOUT RESET --- */
@@ -112,7 +114,7 @@
             z-index: 0;
         }
 
-        /* --- 2. THE SCROLLING NOTES AREA --- */
+        /* --- 2. THE SCROLLING NOTES AREA (SMART UPDATE) --- */
         #notes-container {
             flex: 1; 
             position: relative;
@@ -120,9 +122,26 @@
             display: flex;
             justify-content: center; 
             border-top: 1px solid #111;
+            background: #050505;
         }
 
-        #slideNotes {
+        #notes-wrapper {
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        #notes-wrapper::-webkit-scrollbar { width: 10px; }
+        #notes-wrapper::-webkit-scrollbar-track { background: #111; }
+        #notes-wrapper::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+
+        /* The Editor (Hidden by default) */
+        #slideNotesEditor {
+            width: 100%;
+            min-height: 100%;
             background: transparent;
             border: none;
             color: #aaa; 
@@ -130,18 +149,48 @@
             text-align: left; 
             outline: none;
             font-family: 'Consolas', 'Courier New', monospace; 
-            height: 100%; 
-            width: 100%;
-            max-width: 800px; 
-            padding: 20px;
-            overflow-y: auto; 
-            white-space: pre-wrap; 
+            resize: none;
             line-height: 1.6;
+            display: none; 
         }
-        
-        #slideNotes::-webkit-scrollbar { width: 10px; }
-        #slideNotes::-webkit-scrollbar-track { background: #111; }
-        #slideNotes::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+
+        /* The Preview (Shown by default) */
+        #slideNotesPreview {
+            width: 100%;
+            min-height: 100%;
+            color: #ddd;
+            font-size: 18px;
+            line-height: 1.6;
+            display: block;
+            cursor: text; /* Looks like you can type */
+        }
+
+        /* Tiny Manual Toggle Button */
+        #notes-mode-toggle {
+            position: absolute;
+            top: 10px;
+            right: 20px; /* Inside the scroll area context if needed, but here fixed to container */
+            z-index: 100;
+            background: transparent;
+            border: 1px solid #333;
+            color: #555;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        #notes-mode-toggle:hover { opacity: 1; color: #fff; border-color: #666; }
+
+        /* Markdown Styling */
+        #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        #slideNotesPreview code { background: #222; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #ff7b72; }
+        #slideNotesPreview ul, #slideNotesPreview ol { padding-left: 25px; }
+        #slideNotesPreview blockquote { border-left: 3px solid #444; margin: 0; padding-left: 15px; color: #777; font-style: italic; }
+        #slideNotesPreview strong { color: #fff; }
+        #slideNotesPreview a { color: #58a6ff; }
+        .empty-placeholder { color: #444; font-style: italic; }
 
         /* --- SETTINGS MENU --- */
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
@@ -286,12 +335,18 @@
     </div>
 
     <div id="notes-container">
-        <div id="slideNotes" contenteditable="true" role="textbox" data-placeholder="Start typing notes..."></div>
+        <button id="notes-mode-toggle" onclick="toggleNotesModeManual()">👁️</button>
+        
+        <div id="notes-wrapper">
+            <textarea id="slideNotesEditor" placeholder="Type Markdown here..."></textarea>
+            <div id="slideNotesPreview" onclick="activateEditor()"></div>
+        </div>
     </div>
 
     <script>
         // --- STATE ---
-        const savedData = localStorage.getItem('slideTrackerData_Fixed_Offsets'); 
+        // Changed key to prevent conflict with old data versions
+        const savedData = localStorage.getItem('slideTrackerData_Smart_Stable'); 
         let state = savedData ? JSON.parse(savedData) : { count: 0, memory: {} };
         
         const MODES = ['NUM', 'PULSE', 'PDF'];
@@ -307,7 +362,13 @@
         
         const display = document.getElementById('display');
         const slideLabel = document.getElementById('slideLabel');
-        const slideNotes = document.getElementById('slideNotes');
+        
+        // REPLACED OLD SLIDENOTES with Editor/Preview
+        const editor = document.getElementById('slideNotesEditor');
+        const preview = document.getElementById('slideNotesPreview');
+        const toggleBtn = document.getElementById('notes-mode-toggle');
+        let isEditorActive = false;
+
         const pdfContainer = document.getElementById('pdf-render-container');
         const noPdfMsg = document.getElementById('no-pdf-msg');
         const modeStatus = document.getElementById('mode-status');
@@ -323,8 +384,71 @@
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_Fixed_Offsets', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_Smart_Stable', JSON.stringify(state));
         }
+
+        // --- SMART NOTES LOGIC ---
+        function activateEditor() {
+            isEditorActive = true;
+            editor.style.display = 'block';
+            preview.style.display = 'none';
+            toggleBtn.textContent = '✏️'; 
+            editor.focus();
+        }
+
+        function activatePreview() {
+            isEditorActive = false;
+            editor.style.display = 'none';
+            preview.style.display = 'block';
+            toggleBtn.textContent = '👁️'; 
+            
+            // Render logic
+            const rawText = editor.value;
+            if(!rawText || !rawText.trim()) {
+                preview.innerHTML = '<span class="empty-placeholder">Click to add notes...</span>';
+            } else if (typeof marked !== 'undefined') {
+                preview.innerHTML = marked.parse(rawText);
+            } else {
+                // Fallback if marked didn't load
+                preview.innerHTML = rawText.replace(/\n/g, '<br>');
+            }
+        }
+
+        function toggleNotesModeManual() {
+            if(isEditorActive) activatePreview();
+            else activateEditor();
+        }
+
+        // Auto-switch to preview on blur (click away)
+        editor.addEventListener('blur', (e) => {
+            // Short delay to check where focus went (in case we clicked the toggle btn)
+            setTimeout(() => {
+                if (document.activeElement !== toggleBtn) {
+                    activatePreview();
+                }
+            }, 100);
+        });
+
+        // Smart List Logic (Auto bullets)
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const text = editor.value;
+                const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                const currentLine = text.substring(lineStart, start);
+                const match = currentLine.match(/^(\s*)([-*]|\d+\.)\s/);
+                
+                if (match) {
+                    e.preventDefault();
+                    const prefix = match[0];
+                    const newText = text.substring(0, start) + '\n' + prefix + text.substring(end);
+                    editor.value = newText;
+                    editor.selectionStart = editor.selectionEnd = start + prefix.length + 1;
+                    handleInput(); 
+                }
+            }
+        });
 
         // --- DRAWING LOGIC ---
         let isDrawing = false;
@@ -355,8 +479,9 @@
             }
         }
 
-        // --- CRITICAL FIX: ACCURATE MOUSE POSITION ---
-        // This calculates position relative to the visual canvas, then normalizes (0-1)
+        function toNorm(x, y) { return { x: x / drawCanvas.width, y: y / drawCanvas.height }; }
+        function toPixel(xNorm, yNorm) { return { x: xNorm * drawCanvas.width, y: yNorm * drawCanvas.height }; }
+
         function getNormalizedPos(e) {
             const rect = drawCanvas.getBoundingClientRect();
             return {
@@ -365,20 +490,11 @@
             };
         }
 
-        // Converts Normalized (0-1) to Internal Canvas Pixels
-        function toPixel(xNorm, yNorm) {
-            return { 
-                x: xNorm * drawCanvas.width, 
-                y: yNorm * drawCanvas.height 
-            };
-        }
-
         drawCanvas.addEventListener('mousedown', (e) => {
             const norm = getNormalizedPos(e);
             
             if (currentTool === 'eraser') {
                 isErasing = true;
-                // We must calculate internal pixel for eraser check logic
                 const px = toPixel(norm.x, norm.y);
                 eraseStrokeAtInternal(px.x, px.y);
             } else {
@@ -386,7 +502,6 @@
                 currentStrokes.push({ points: [norm] });
                 
                 const px = toPixel(norm.x, norm.y);
-                
                 drawCtx.lineWidth = 3;
                 drawCtx.strokeStyle = 'red';
                 drawCtx.lineCap = 'round';
@@ -441,8 +556,6 @@
             const drawings = data.drawings || [];
             if(drawings.length === 0) return;
 
-            // Adjust eraser radius based on scale (canvas width / visible width roughly)
-            // Or just pick a generous internal pixel size
             const eraserRadius = 25; 
 
             const remainingDrawings = drawings.filter(path => {
@@ -506,15 +619,20 @@
         function handleInput() {
             if (!state.memory[state.count]) state.memory[state.count] = {};
             state.memory[state.count].header = slideLabel.innerText;
-            state.memory[state.count].notes = slideNotes.innerText;
+            // CHANGED: Get from Editor
+            state.memory[state.count].notes = editor.value; 
             saveData();
         }
         slideLabel.addEventListener('input', handleInput);
-        slideNotes.addEventListener('input', handleInput);
+        editor.addEventListener('input', handleInput); // Listen to editor
         slideLabel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); slideLabel.blur(); }});
 
         function handleNav(direction) {
             const mode = MODES[currentModeIndex];
+            
+            // Force Preview Mode on nav if currently editing
+            if(isEditorActive) activatePreview();
+
             if (direction === 'forward') {
                 state.count++;
                 if (mode === 'PULSE') triggerFlash(">>>");
@@ -537,7 +655,17 @@
             const data = state.memory[state.count] || {};
 
             if (mode !== 'PDF') slideLabel.innerText = data.header || "";
-            slideNotes.innerText = data.notes || "";
+            
+            // CHANGED: Load notes into editor and update Preview
+            const noteText = data.notes || "";
+            editor.value = noteText;
+            
+            // Only update preview content (don't force display block here if editing)
+            if (typeof marked !== 'undefined') {
+                preview.innerHTML = noteText.trim() ? marked.parse(noteText) : '<span class="empty-placeholder">Click to add notes...</span>';
+            } else {
+                preview.innerHTML = noteText;
+            }
 
             if (mode === 'NUM' || mode === 'PDF') {
                 display.textContent = state.count;
@@ -599,7 +727,6 @@
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
                         pdfDoc = pdfDoc_;
                         noPdfMsg.style.display = "none";
-                        // Auto switch logic if not already default
                         if (MODES[currentModeIndex] === 'PDF') renderPage(state.count + 1);
                     });
                 };
@@ -661,7 +788,9 @@
         function toggleMenu() { controlsPanel.classList.toggle('active'); }
         function updateNumberSize(val) { display.style.fontSize = val + "px"; }
         function updateTextSize(val) {
-            slideNotes.style.fontSize = val + "px";
+            // Update both Editor and Preview font size
+            editor.style.fontSize = val + "px";
+            preview.style.fontSize = val + "px";
             slideLabel.style.fontSize = (val * 1.5) + "px";
         }
         function updatePdfSize(val) { pdfContainer.style.height = val + "vh"; }
@@ -679,12 +808,17 @@
 
         // --- KEYS ---
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { document.activeElement.blur(); return; }
+            if (e.key === 'Escape') { 
+                // Escape key now confirms edit
+                activatePreview();
+                document.activeElement.blur(); 
+                return; 
+            }
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); handleNav('forward'); return; }
                 if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); handleNav('backward'); return; }
             }
-            if (document.activeElement === slideNotes) return;
+            if (document.activeElement === editor) return; // Allow typing in editor
             if (document.activeElement === slideLabel) {
                  if (['ArrowUp','ArrowDown'].includes(e.key)) {
                     e.preventDefault(); 
