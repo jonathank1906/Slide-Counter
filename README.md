@@ -2,14 +2,16 @@
 
 ## Features
 
-* **Zero Install:** Runs entirely in your browser. No internet connection required.
-* **Dual Modes:**
-    * **Slide Numbers:** Tracks incremental numbers (1, 2, 3...) for standard presentations.
+* **Zero Install:** Runs entirely in your browser. (Requires internet connection on the very first load to fetch the PDF library, then works offline).
+* **3 Modes:**
+    * **Standard:** Slide Number + Text Header + Notes.
     * **No Slide Numbers:** Flashes visual directional cues (`>>>` or `<<<`) without numbers.
+    * **PDF Slides:** Renders your actual PDF slides + Slide Number.
 
 
-* **Sticky Header:** The slide indicator stays pinned to the top, so you never lose your place.
-* **Integrated Notepad:** A scrollable, auto-saving text area for lecture notes or scripts.
+* **Project File System:** Export your notes as a JSON file to backup your work or move between computers.
+* **Sticky Header:** The slide indicator and PDF preview stay pinned to the top while you scroll through long notes.
+* **Integrated Notepad:** A scrollable, auto-saving text area for lecture notes.
 
 ## Shortcuts
 
@@ -21,9 +23,13 @@
 | **Esc** | Unfocus text box (Stop typing) |
 | **Enter** (in Header) | Finish typing header |
 
-## Local Storage (Data Saving)
+## Data Saving & Workflow
 
-This tool automatically saves your slide numbers, headers, and notes to your browser's internal memory every time you type or navigate.
+This tool uses a two-part system to keep your data safe.
+
+### 1. Auto-Save (Local Storage)
+
+This runs automatically in the background. Every time you type or navigate, your progress is saved to the browser's internal memory.
 
 **How long does it last?**
 
@@ -31,30 +37,40 @@ This tool automatically saves your slide numbers, headers, and notes to your bro
 
 **Will clearing "History" delete it?**
 
-* It depends on which box you check.
-* **Safe:** If you only clear "Browsing history" (the list of websites you visited), your data is safe.
+* **Safe:** If you only clear "Browsing history", your data is safe.
 * **Not Safe:** If you clear "Cookies and other site data", your data will be deleted.
 
+**Important Rules for Auto-Save:**
 
+1. **Do not move the file:** If you move the `.html` file to a different folder, the browser treats it as a new website and your data won't appear.
+2. **Do not use Incognito:** Private windows delete everything when closed.
+3. **Same Browser:** Chrome data does not transfer to Firefox/Edge.
 
-**Important Rules to avoid losing data:**
+### 2. Manual Save (Project Files)
 
-1. **Do not move the file:** If you move the `.html` file to a different folder on your computer, the browser will treat it like a "new website" and your data won't be there. Keep the file in the same place.
-2. **Do not use Incognito/Private Mode:** Private windows delete everything the moment you close them. Use a normal window.
-3. **Same Browser:** If you open the file in Chrome today, and then try to open it in Edge tomorrow, the data won't transfer. It stays in the browser you started with.
+Since browsers cannot permanently store large PDF files, use this workflow for long-term projects:
+
+* **To Save:** Click **Export Notes** in settings. This downloads a `.json` file containing all your notes and headers.
+* **To Resume:** Open the tool, load your PDF again, and then load your `.json` file. Your notes will sync up to the slides immediately.
 
 ## Settings
 
 Click the **Gear Icon** in the top-left corner to access settings:
 
-* **Switch Mode:** Toggle between Numbered tracking and Visual Pulse tracking.
+* **Switch Mode:** Cycle through Standard -> No Numbers -> PDF Mode.
+* **Load Slides (PDF):** Select your lecture slides PDF.
+* **Import Notes (JSON):** Load a previously saved session.
+* **Save/Export Notes:** Download your current notes as a file.
 * **Number Size:** Slider to adjust the size of the corner indicator.
 * **Text Size:** Slider to adjust the size of your headers and notes.
+* **PDF Preview Size:** Slider to adjust the vertical height of the slide preview.
 * **Reset All:** Wipes all saved data and starts fresh from Slide 0.
 
 ## How to Use
 
 1. Save the code as an `.html` file.
 2. Open the file in any modern web browser.
-3. Type your header or notes for the current slide.
-4. Use the **Arrow Keys** to advance slides.
+3. Open Settings and **Load Slides (PDF)**.
+4. (Optional) **Import Notes** if continuing a previous session.
+5. Use the **Arrow Keys** to advance slides and type notes below.
+6. When finished, click **Save/Export Notes** to keep a permanent backup.

@@ -76,13 +76,13 @@
             justify-content: center;
             align-items: center;
             width: 100%;
-            height: 30vh; /* Default height, controllable via slider */
+            height: 30vh; 
             position: relative;
-            transition: height 0.1s ease; /* Smooth resizing */
+            transition: height 0.1s ease; 
         }
 
         canvas {
-            max-height: 100%; /* Important: fits inside container */
+            max-height: 100%; 
             max-width: 80%;
             border: 1px solid #333;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -150,7 +150,7 @@
             border: 1px solid #333;
             flex-direction: column;
             gap: 15px;
-            width: 250px;
+            width: 260px; /* Slightly wider for buttons */
         }
         #controls-panel.active { display: flex; }
 
@@ -189,8 +189,17 @@
             <hr style="width:100%; border:0; border-top:1px solid #333;">
 
             <div class="control-group">
-                <label>For PDF Mode:</label>
+                <label>Load Slides (PDF)</label>
                 <input type="file" id="pdf-upload" accept=".pdf">
+            </div>
+
+            <div class="control-group">
+                <label>Import Notes (JSON)</label>
+                <input type="file" id="json-upload" accept=".json">
+            </div>
+
+            <div class="control-group">
+                <button id="export-btn" class="action-btn" onclick="exportNotes()">Save/Export Notes</button>
             </div>
 
             <hr style="width:100%; border:0; border-top:1px solid #333;">
@@ -218,7 +227,7 @@
         <div id="display">0</div>
         <span id="slideLabel" contenteditable="true" role="textbox" data-placeholder="Header..."></span>
         <div id="pdf-render-container">
-            <div id="no-pdf-msg">Load PDF in Settings</div>
+            <div id="no-pdf-msg">Load PDF in Settings (⚙)</div>
             <canvas id="the-canvas"></canvas>
         </div>
     </div>
@@ -228,7 +237,9 @@
     </div>
 
     <script>
-        const savedData = localStorage.getItem('slideTrackerData_Final_Fixed'); 
+        // --- DATA STORAGE ---
+        // We still auto-save to local storage as a backup
+        const savedData = localStorage.getItem('slideTrackerData_Project'); 
         let state = savedData ? JSON.parse(savedData) : { count: 0, memory: {} };
 
         const MODES = ['NUM', 'PULSE', 'PDF'];
@@ -252,8 +263,60 @@
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_Final_Fixed', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_Project', JSON.stringify(state));
         }
+
+        // --- EXPORT / IMPORT LOGIC (NEW) ---
+
+        // 1. EXPORT
+        function exportNotes() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            // Naming convention: notes_TIMESTAMP.json
+            const date = new Date().toISOString().slice(0,10); 
+            downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // 2. IMPORT
+        document.getElementById('json-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const loadedState = JSON.parse(event.target.result);
+                    
+                    // Simple validation
+                    if (typeof loadedState.count !== 'number' || !loadedState.memory) {
+                        alert("Invalid JSON file format.");
+                        return;
+                    }
+
+                    // Apply state
+                    state = loadedState;
+                    saveData(); // Save to local storage immediately
+                    updateDisplay();
+                    
+                    // If PDF is loaded, jump to the saved slide
+                    if(pdfDoc && MODES[currentModeIndex] === 'PDF') {
+                        renderPage(state.count + 1);
+                    }
+                    
+                    alert("Notes loaded successfully!");
+                    
+                } catch(err) {
+                    alert("Error reading JSON file.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        });
+
 
         // --- MODE LOGIC ---
         function cycleMode() {
@@ -289,6 +352,10 @@
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
                         pdfDoc = pdfDoc_;
                         noPdfMsg.style.display = "none";
+                        // Auto Switch to PDF mode
+                        if (MODES[currentModeIndex] !== 'PDF') {
+                             // Optional: force switch or just stay put
+                        }
                         if (MODES[currentModeIndex] === 'PDF') {
                             renderPage(state.count + 1);
                         }
@@ -394,15 +461,8 @@
             slideNotes.style.fontSize = val + "px";
             slideLabel.style.fontSize = (val * 1.5) + "px";
         }
-
-        // --- NEW PDF SIZING FUNCTIONS ---
-        function updatePdfSize(val) {
-            // Update CSS height instantly for smooth dragging
-            pdfContainer.style.height = val + "vh";
-        }
-
+        function updatePdfSize(val) { pdfContainer.style.height = val + "vh"; }
         function refreshPdfResolution() {
-            // Re-render PDF when slider stops to ensure sharp text
             if (MODES[currentModeIndex] === 'PDF' && pdfDoc) {
                 renderPage(state.count + 1);
             }
