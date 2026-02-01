@@ -291,7 +291,7 @@
 
     <script>
         // --- STATE ---
-        const savedData = localStorage.getItem('slideTrackerData_Project_StrokeEraser'); 
+        const savedData = localStorage.getItem('slideTrackerData_Fixed_Offsets'); 
         let state = savedData ? JSON.parse(savedData) : { count: 0, memory: {} };
         
         const MODES = ['NUM', 'PULSE', 'PDF'];
@@ -323,7 +323,7 @@
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_Project_StrokeEraser', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_Fixed_Offsets', JSON.stringify(state));
         }
 
         // --- DRAWING LOGIC ---
@@ -341,7 +341,6 @@
             } else {
                 btnPen.classList.remove('active');
                 btnEraser.classList.add('active');
-                // Use a different cursor for eraser
                 drawCanvas.style.cursor = 'cell'; 
             }
         }
@@ -356,33 +355,54 @@
             }
         }
 
-        function toNorm(x, y) { return { x: x / drawCanvas.width, y: y / drawCanvas.height }; }
-        function toPixel(xNorm, yNorm) { return { x: xNorm * drawCanvas.width, y: yNorm * drawCanvas.height }; }
+        // --- CRITICAL FIX: ACCURATE MOUSE POSITION ---
+        // This calculates position relative to the visual canvas, then normalizes (0-1)
+        function getNormalizedPos(e) {
+            const rect = drawCanvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) / rect.width,
+                y: (e.clientY - rect.top) / rect.height
+            };
+        }
 
-        // --- CORE INTERACTION ---
+        // Converts Normalized (0-1) to Internal Canvas Pixels
+        function toPixel(xNorm, yNorm) {
+            return { 
+                x: xNorm * drawCanvas.width, 
+                y: yNorm * drawCanvas.height 
+            };
+        }
+
         drawCanvas.addEventListener('mousedown', (e) => {
+            const norm = getNormalizedPos(e);
+            
             if (currentTool === 'eraser') {
                 isErasing = true;
-                eraseStrokeAt(e.offsetX, e.offsetY);
+                // We must calculate internal pixel for eraser check logic
+                const px = toPixel(norm.x, norm.y);
+                eraseStrokeAtInternal(px.x, px.y);
             } else {
                 isDrawing = true;
-                const norm = toNorm(e.offsetX, e.offsetY);
-                // Start a new path (Pen)
                 currentStrokes.push({ points: [norm] });
-                // Draw initial dot
+                
+                const px = toPixel(norm.x, norm.y);
+                
                 drawCtx.lineWidth = 3;
                 drawCtx.strokeStyle = 'red';
                 drawCtx.lineCap = 'round';
                 drawCtx.beginPath();
-                drawCtx.moveTo(e.offsetX, e.offsetY);
-                drawCtx.lineTo(e.offsetX, e.offsetY);
+                drawCtx.moveTo(px.x, px.y);
+                drawCtx.lineTo(px.x, px.y);
                 drawCtx.stroke();
             }
         });
 
         drawCanvas.addEventListener('mousemove', (e) => {
+            const norm = getNormalizedPos(e);
+            const px = toPixel(norm.x, norm.y);
+
             if (currentTool === 'eraser' && isErasing) {
-                eraseStrokeAt(e.offsetX, e.offsetY);
+                eraseStrokeAtInternal(px.x, px.y);
                 return;
             }
 
@@ -396,10 +416,10 @@
                 drawCtx.lineCap = 'round';
                 drawCtx.beginPath();
                 drawCtx.moveTo(lastPx.x, lastPx.y);
-                drawCtx.lineTo(e.offsetX, e.offsetY);
+                drawCtx.lineTo(px.x, px.y);
                 drawCtx.stroke();
 
-                currentPath.points.push(toNorm(e.offsetX, e.offsetY));
+                currentPath.points.push(norm);
             }
         });
 
@@ -416,26 +436,24 @@
             }
         }
 
-        // --- STROKE ERASER LOGIC ---
-        function eraseStrokeAt(x, y) {
+        function eraseStrokeAtInternal(internalX, internalY) {
             const data = state.memory[state.count] || {};
             const drawings = data.drawings || [];
             if(drawings.length === 0) return;
 
-            const eraserRadius = 20; // How close you have to be to the line
+            // Adjust eraser radius based on scale (canvas width / visible width roughly)
+            // Or just pick a generous internal pixel size
+            const eraserRadius = 25; 
 
-            // Filter OUT strokes that we are touching
             const remainingDrawings = drawings.filter(path => {
-                // Check if ANY point in this path is close to mouse
                 const isTouched = path.points.some(ptNorm => {
                     const ptPx = toPixel(ptNorm.x, ptNorm.y);
-                    const dist = Math.hypot(ptPx.x - x, ptPx.y - y);
+                    const dist = Math.hypot(ptPx.x - internalX, ptPx.y - internalY);
                     return dist < eraserRadius;
                 });
-                return !isTouched; // Keep if NOT touched
+                return !isTouched; 
             });
 
-            // If we deleted something, update state & redraw
             if(remainingDrawings.length !== drawings.length) {
                 state.memory[state.count].drawings = remainingDrawings;
                 saveData();
@@ -453,7 +471,6 @@
 
         function renderDrawings() {
             drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-            
             const data = state.memory[state.count] || {};
             const drawings = data.drawings || [];
 
@@ -484,7 +501,7 @@
         }
 
 
-        // --- APP LOGIC (Input/Nav) ---
+        // --- APP LOGIC ---
 
         function handleInput() {
             if (!state.memory[state.count]) state.memory[state.count] = {};
@@ -558,17 +575,13 @@
                 slideLabel.style.display = 'none';
                 pdfContainer.style.display = 'flex';
                 modeStatus.textContent = "Mode: PDF Slides";
-                
-                // ACTIVATE DRAWING
                 drawCanvas.classList.add('active');
                 drawingControls.style.display = 'flex';
-                // Reset to Pen on mode switch
                 setTool('pen'); 
             } else {
                 slideLabel.style.display = 'block';
                 pdfContainer.style.display = 'none';
                 modeStatus.textContent = (mode === 'NUM') ? "Mode: Standard" : "Mode: No Numbers";
-                
                 drawCanvas.classList.remove('active');
                 drawingControls.style.display = 'none';
             }
@@ -586,6 +599,7 @@
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
                         pdfDoc = pdfDoc_;
                         noPdfMsg.style.display = "none";
+                        // Auto switch logic if not already default
                         if (MODES[currentModeIndex] === 'PDF') renderPage(state.count + 1);
                     });
                 };
