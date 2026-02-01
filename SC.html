@@ -2,92 +2,133 @@
 <html>
 <head>
     <style>
+        /* --- LAYOUT RESET --- */
+        * { box-sizing: border-box; }
+
         body {
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            height: 100vh; 
             font-family: Arial, sans-serif;
             background-color: black;
             color: white;
-            overflow: hidden;
-        }
-
-        /* --- CENTER DISPLAY --- */
-        #center-container {
+            overflow: hidden; 
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
+            flex-direction: column; 
         }
 
+        /* --- 1. THE FIXED HEADER --- */
+        #sticky-header-group {
+            flex: 0 0 auto; 
+            background: #000;
+            border-bottom: 1px solid #222;
+            padding: 15px 20px;
+            z-index: 50;
+            position: relative; 
+            
+            /* Center the label */
+            display: flex;
+            justify-content: center; 
+            align-items: center;
+            min-height: 80px; 
+        }
+
+        /* Number/Arrow in Top Right */
         #display {
-            font-size: 150px; 
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%); 
+            
+            font-size: 80px; 
             font-weight: bold;
             user-select: none;
-            text-align: center;
             line-height: 1;
-            transition: color 0.1s;
+            white-space: nowrap; 
+            text-align: right;
         }
 
-        /* --- DYNAMIC WIDTH INPUT --- */
+        /* Centered Header */
         #slideLabel {
             background: transparent;
-            border-bottom: 2px solid #333; 
+            border-bottom: 1px solid #333; 
             color: #ddd;
-            font-size: 50px; 
-            text-align: center;
+            font-size: 30px; 
             outline: none;
-            font-family: inherit;
-            padding-bottom: 5px;
-            min-width: 50px; 
-            display: inline-block;
+            padding-bottom: 2px;
+            min-width: 200px;
+            max-width: 60%; 
+            text-align: center; 
             transition: border-color 0.2s;
             cursor: text;
         }
+        #slideLabel:focus { border-bottom: 1px solid #fff; }
 
-        #slideLabel:focus {
-            border-bottom: 2px solid #fff; 
+        /* --- 2. THE SCROLLING NOTES AREA --- */
+        #notes-container {
+            flex: 1; 
+            position: relative;
+            overflow: hidden; 
+            display: flex;
+            justify-content: center; 
         }
+
+        #slideNotes {
+            background: transparent;
+            border: none;
+            color: #aaa; 
+            font-size: 18px; 
+            text-align: left; 
+            outline: none;
+            font-family: 'Consolas', 'Courier New', monospace; 
+            
+            height: 100%; 
+            width: 100%;
+            max-width: 800px; 
+            padding: 20px;
+            overflow-y: auto; 
+            
+            white-space: pre-wrap; 
+            line-height: 1.6;
+        }
+        
+        #slideNotes::-webkit-scrollbar { width: 10px; }
+        #slideNotes::-webkit-scrollbar-track { background: #111; }
+        #slideNotes::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
+        #slideNotes::-webkit-scrollbar-thumb:hover { background: #555; }
 
         /* --- SETTINGS MENU --- */
-        #menu-container {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-        }
-
+        #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
+        
+        /* RESTORED: Clean Icon Style (No Box) */
         #gear-btn {
             background: transparent;
-            color: #555;
+            color: #555; /* Darker grey when idle */
             border: none;
-            font-size: 24px;
+            font-size: 24px; /* Slightly larger */
             cursor: pointer;
             padding: 5px;
             transition: color 0.2s;
         }
-        #gear-btn:hover { color: #fff; }
+        #gear-btn:hover { 
+            color: #fff; /* Just turns white, no border */
+        }
 
         #controls-panel {
             display: none;
-            margin-top: 10px;
+            margin-top: 5px;
             background: #111;
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #333;
             flex-direction: column;
             gap: 15px;
-            width: 200px;
+            width: 220px;
         }
-
         #controls-panel.active { display: flex; }
 
         button.action-btn {
-            padding: 8px 16px;
-            font-size: 14px;
+            padding: 8px;
+            font-size: 12px;
             cursor: pointer;
             background: #000;
             color: #ddd;
@@ -98,18 +139,9 @@
 
         .control-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 12px; color: #888; }
-        
         input[type=range] { width: 100%; cursor: pointer; accent-color: #888; }
-        
-        #mode-status { color: #aaa; font-size: 13px; font-weight: bold; }
-        
-        /* New Reset Button Style */
-        #clear-data-btn {
-            margin-top: 10px;
-            color: #ff4444;
-            border-color: #552222;
-        }
-        #clear-data-btn:hover { background: #331111; }
+        #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
+        #clear-data-btn { color: #ff4444; border-color: #552222; }
 
     </style>
 </head>
@@ -117,7 +149,6 @@
 
     <div id="menu-container">
         <button id="gear-btn" onclick="toggleMenu()">⚙</button>
-        
         <div id="controls-panel">
             <div class="control-group">
                 <div id="mode-status">Mode: Slide Numbers</div>
@@ -125,34 +156,40 @@
             </div>
             
             <div class="control-group">
-                <label>Size Adjustment</label>
-                <input type="range" min="50" max="400" value="150" oninput="updateSize(this.value)">
+                <label>Number Size</label>
+                <input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)">
             </div>
 
-            <button id="clear-data-btn" class="action-btn" onclick="clearAllData()">Reset All Data</button>
+            <div class="control-group">
+                <label>Text Size</label>
+                <input type="range" min="12" max="60" value="18" oninput="updateTextSize(this.value)">
+            </div>
+
+            <button id="clear-data-btn" class="action-btn" onclick="clearAllData()">Reset All</button>
         </div>
     </div>
 
-    <div id="center-container">
+    <div id="sticky-header-group">
         <div id="display">0</div>
         <span id="slideLabel" contenteditable="true" role="textbox"></span>
     </div>
 
+    <div id="notes-container">
+        <div id="slideNotes" contenteditable="true" role="textbox" data-placeholder="Start typing notes..."></div>
+    </div>
+
     <script>
-        // --- DATA STORAGE & AUTO-SAVE ---
+        // --- DATA STORAGE ---
+        // Keeping same key so you don't lose data
+        const savedData = localStorage.getItem('slideTrackerData_V7'); 
         
-        // 1. Try to load from browser memory
-        const savedData = localStorage.getItem('slideTrackerData');
-        
-        // 2. Set state to saved data OR default empty state
         let state = savedData ? JSON.parse(savedData) : {
             NUM: { count: 0, memory: {} },
             PULSE: { count: 0, memory: {} }
         };
 
-        // 3. Save function
         function saveData() {
-            localStorage.setItem('slideTrackerData', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_V7', JSON.stringify(state));
         }
 
         // --- SETUP ---
@@ -161,25 +198,30 @@
 
         const display = document.getElementById('display');
         const slideLabel = document.getElementById('slideLabel');
+        const slideNotes = document.getElementById('slideNotes');
         const modeStatus = document.getElementById('mode-status');
         const controlsPanel = document.getElementById('controls-panel');
 
         updateDisplay(); 
 
-        // --- MENU LOGIC ---
+        // --- MENU ---
         function toggleMenu() { controlsPanel.classList.toggle('active'); }
 
         // --- INPUT LOGIC ---
-        slideLabel.addEventListener('input', (e) => {
-            state[currentMode].memory[state[currentMode].count] = slideLabel.textContent;
-            saveData(); // Auto-save on typing
-        });
+        function handleInput() {
+            state[currentMode].memory[state[currentMode].count] = {
+                header: slideLabel.innerText, 
+                notes: slideNotes.innerText
+            };
+            saveData();
+        }
 
+        slideLabel.addEventListener('input', handleInput);
+        slideNotes.addEventListener('input', handleInput);
+
+        // Header: Enter = Blur
         slideLabel.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                slideLabel.blur();
-            }
+            if (e.key === 'Enter') { e.preventDefault(); slideLabel.blur(); }
         });
 
         // --- NAVIGATION LOGIC ---
@@ -197,13 +239,16 @@
                 }
             }
 
-            saveData(); // Auto-save on navigation
+            saveData();
             updateDisplay();
         }
 
         function updateDisplay() {
             const activeState = state[currentMode];
-            slideLabel.textContent = activeState.memory[activeState.count] || "";
+            const data = activeState.memory[activeState.count] || {};
+
+            slideLabel.innerText = data.header || "";
+            slideNotes.innerText = data.notes || "";
 
             if (currentMode === 'NUM') {
                 display.textContent = activeState.count;
@@ -228,19 +273,23 @@
 
         function toggleMode() {
             currentMode = (currentMode === 'NUM') ? 'PULSE' : 'NUM';
-            modeStatus.textContent = (currentMode === 'NUM') ? "Mode: Slide Numbers" : "Mode: Forward/Backward";
+            modeStatus.textContent = (currentMode === 'NUM') ? "Mode: Slide Numbers" : "Mode: No Slide Numbers";
             if(timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
             updateDisplay();
         }
 
-        function updateSize(val) {
+        // --- DUAL SIZE UPDATERS ---
+        function updateNumberSize(val) {
             display.style.fontSize = val + "px";
-            slideLabel.style.fontSize = (val * 0.4) + "px";
         }
 
-        // New function to wipe memory if you want to start fresh
+        function updateTextSize(val) {
+            slideNotes.style.fontSize = val + "px";
+            slideLabel.style.fontSize = (val * 1.5) + "px";
+        }
+
         function clearAllData() {
-            if(confirm("Are you sure you want to reset all numbers and text?")) {
+            if(confirm("Are you sure? This resets all slides and notes.")) {
                 state = { NUM: { count: 0, memory: {} }, PULSE: { count: 0, memory: {} } };
                 saveData();
                 updateDisplay();
@@ -249,12 +298,38 @@
 
         // --- GLOBAL KEY LISTENER ---
         document.addEventListener('keydown', e => {
+            
+            // 1. ESC KEY
+            if (e.key === 'Escape') {
+                document.activeElement.blur();
+                return;
+            }
+
+            // 2. CTRL/CMD + ARROW
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+                    e.preventDefault(); 
+                    handleNav('forward');
+                    return;
+                }
+                if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+                    e.preventDefault(); 
+                    handleNav('backward');
+                    return;
+                }
+            }
+
+            // 3. Normal Behavior (Notes)
+            if (document.activeElement === slideNotes) return;
+
+            // 4. Header Navigation
             if (document.activeElement === slideLabel) {
                 if (e.key === 'ArrowUp') { e.preventDefault(); handleNav('forward'); }
                 else if (e.key === 'ArrowDown') { e.preventDefault(); handleNav('backward'); }
                 return; 
             }
 
+            // 5. Default Navigation
             if(e.key === 'ArrowUp' || e.key === 'ArrowRight') handleNav('forward');
             else if(e.key === 'ArrowDown' || e.key === 'ArrowLeft') handleNav('backward');
         });
