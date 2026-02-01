@@ -1,7 +1,3 @@
-Here is the updated README.md including the new **Drawing, Eraser, and Slide Clearing** features.
-
----
-
 # Slide Counter
 
 ## Features
