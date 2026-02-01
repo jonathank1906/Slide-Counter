@@ -1,7 +1,5 @@
 # Slide Counter
 
-A lightweight, single-file HTML tool designed for creators who record voiceovers and screen captures separately. It acts as a digital "clapperboard," providing distinct visual cues to help you sync your audio to your slides during post-production.
-
 ## Features
 
 * **Zero Install:** Runs entirely in your browser. No internet connection required.
