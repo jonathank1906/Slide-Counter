@@ -31,9 +31,13 @@
             padding: 10px 20px;
             z-index: 50;
             position: relative; 
+            
+            /* VERTICAL STACK FOR HEADER + PDF */
             display: flex;
+            flex-direction: column;
             justify-content: center; 
             align-items: center;
+            
             min-height: 100px; 
         }
 
@@ -61,6 +65,7 @@
             font-size: 30px; 
             outline: none;
             padding-bottom: 2px;
+            margin-bottom: 10px; /* Space between header and PDF */
             min-width: 200px;
             max-width: 60%; 
             text-align: center; 
@@ -138,7 +143,7 @@
         #notes-wrapper::-webkit-scrollbar-track { background: #111; }
         #notes-wrapper::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
 
-        /* The Editor (Hidden by default) */
+        /* The Editor */
         #slideNotesEditor {
             width: 100%;
             min-height: 100%;
@@ -154,7 +159,7 @@
             display: none; 
         }
 
-        /* The Preview (Shown by default) */
+        /* The Preview */
         #slideNotesPreview {
             width: 100%;
             min-height: 100%;
@@ -165,24 +170,6 @@
             cursor: text; 
         }
 
-        /* Tiny Manual Toggle Button */
-        #notes-mode-toggle {
-            position: absolute;
-            top: 10px;
-            right: 20px; 
-            z-index: 100;
-            background: transparent;
-            border: 1px solid #333;
-            color: #555;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            opacity: 0.3;
-            transition: opacity 0.2s;
-        }
-        #notes-mode-toggle:hover { opacity: 1; color: #fff; border-color: #666; }
-
         /* Markdown Styling */
         #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 5px; }
         #slideNotesPreview code { background: #222; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #ff7b72; }
@@ -190,10 +177,15 @@
         #slideNotesPreview blockquote { border-left: 3px solid #444; margin: 0; padding-left: 15px; color: #777; font-style: italic; }
         #slideNotesPreview strong { color: #fff; }
         #slideNotesPreview a { color: #58a6ff; }
-        .empty-placeholder { color: #444; font-style: italic; }
-        
-        /* Highlight Style */
         mark { background-color: #ffeb3b; color: black; border-radius: 2px; padding: 0 2px; }
+        .empty-placeholder { color: #444; font-style: italic; }
+
+        /* Tiny Manual Toggle Button */
+        #notes-mode-toggle {
+            position: absolute; top: 10px; right: 20px; z-index: 100;
+            background: transparent; border: 1px solid #333; color: #555; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.3; transition: opacity 0.2s;
+        }
+        #notes-mode-toggle:hover { opacity: 1; color: #fff; border-color: #666; }
 
         /* --- SETTINGS MENU --- */
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
@@ -218,7 +210,7 @@
             border: 1px solid #333;
             flex-direction: column;
             gap: 15px;
-            width: 280px; 
+            width: 300px; 
         }
         #controls-panel.active { display: flex; }
 
@@ -262,7 +254,7 @@
         #export-btn { border-color: #4CAF50; color: #4CAF50; }
         #export-btn:hover { background: #1b331c; }
 
-        /* --- SEARCH BAR STYLES --- */
+        /* SEARCH STYLES */
         .search-group { display: flex; gap: 5px; align-items: center; }
         #search-input { flex: 1; background: #000; border: 1px solid #444; color: white; padding: 6px; font-size: 12px; border-radius: 4px; outline: none; }
         #search-input:focus { border-color: #4CAF50; }
@@ -272,11 +264,17 @@
         #clear-search-btn { background: transparent; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 0 5px; }
         #clear-search-btn:hover { color: #ff4444; }
 
+        /* SLIDE MANAGER STYLES */
+        .slide-ops { display: flex; gap: 5px; }
+        .slide-ops button { flex:1; padding: 6px; font-size: 10px; cursor: pointer; border: 1px solid #444; background: #111; color: #ccc; border-radius: 3px; }
+        .slide-ops button:hover { background: #333; color: white; }
+        .del-btn { color: #ff6666 !important; border-color: #552222 !important; }
+        .del-btn:hover { background: #330000 !important; }
+
         .control-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 12px; color: #888; }
         input[type=range] { width: 100%; cursor: pointer; accent-color: #888; }
         input[type=file] { font-size: 12px; color: #aaa; }
-        
         #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
         #clear-data-btn { color: #ff4444; border-color: #552222; }
 
@@ -291,6 +289,17 @@
             <div class="control-group">
                 <div id="mode-status">Mode: Standard</div>
                 <button class="action-btn" onclick="cycleMode()">Switch Mode</button>
+            </div>
+
+            <div class="control-group">
+                <label style="color:#aaa;">Slide Manager</label>
+                <div class="slide-ops">
+                    <button onclick="insertSlide(-1)">+ Blank Before</button>
+                    <button onclick="insertSlide(1)">+ Blank After</button>
+                </div>
+                <div class="slide-ops">
+                    <button class="del-btn" onclick="deleteCurrentSlide()">Delete Current</button>
+                </div>
             </div>
 
             <div class="control-group">
@@ -316,41 +325,19 @@
             </div>
             
             <hr style="width:100%; border:0; border-top:1px solid #333;">
-
-            <div class="control-group">
-                <label style="color:cyan;">1. Load Slides (PDF)</label>
-                <input type="file" id="pdf-upload" accept=".pdf">
-            </div>
-
-            <div class="control-group">
-                <label style="color:orange;">2. Import Notes (JSON)</label>
-                <input type="file" id="json-upload" accept=".json">
-            </div>
-
-            <div class="control-group">
-                <button id="export-btn" class="action-btn" onclick="exportNotes()">3. Save/Export Notes</button>
-            </div>
-
+            <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf"></div>
+            <div class="control-group"><label style="color:orange;">2. Import Notes (JSON)</label><input type="file" id="json-upload" accept=".json"></div>
+            <div class="control-group"><button id="export-btn" class="action-btn" onclick="exportNotes()">3. Save/Export Notes</button></div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
-
-            <div class="control-group">
-                <label>Number Size</label>
-                <input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)">
-            </div>
-            <div class="control-group">
-                <label>Text Size</label>
-                <input type="range" min="12" max="60" value="18" oninput="updateTextSize(this.value)">
-            </div>
-            <div class="control-group">
-                <label>PDF Preview Size</label>
-                <input type="range" min="10" max="60" value="30" oninput="updatePdfSize(this.value)" onchange="refreshPdfResolution()">
-            </div>
+            <div class="control-group"><label>Number Size</label><input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)"></div>
+            <div class="control-group"><label>Text Size</label><input type="range" min="12" max="60" value="18" oninput="updateTextSize(this.value)"></div>
+            <div class="control-group"><label>PDF Preview Size</label><input type="range" min="10" max="60" value="30" oninput="updatePdfSize(this.value)" onchange="refreshPdfResolution()"></div>
             <button id="clear-data-btn" class="action-btn" onclick="clearAllData()">Reset All</button>
         </div>
     </div>
 
     <div id="sticky-header-group">
-        <div id="display">0</div>
+        <div id="display">1</div>
         <span id="slideLabel" contenteditable="true" role="textbox" data-placeholder="Header..."></span>
         
         <div id="pdf-render-container">
@@ -362,19 +349,67 @@
 
     <div id="notes-container">
         <button id="notes-mode-toggle" title="Toggle Edit/Preview" onclick="toggleNotesModeManual()">👁️</button>
-        
         <div id="notes-wrapper">
-            <textarea id="slideNotesEditor" placeholder="Type Markdown notes here..."></textarea>
+            <textarea id="slideNotesEditor" placeholder="Type Markdown here..."></textarea>
             <div id="slideNotesPreview" onclick="activateEditor()"></div>
         </div>
     </div>
 
     <script>
-        // --- STATE ---
-        const savedData = localStorage.getItem('slideTrackerData_Project_Search_Highlight_Enter'); 
-        let state = savedData ? JSON.parse(savedData) : { count: 0, memory: {} };
-        if(isNaN(state.count)) state.count = 0;
+        // --- STATE & MIGRATION ---
+        const savedData = localStorage.getItem('slideTrackerData_PerfectIndex'); 
+        let state = savedData ? JSON.parse(savedData) : { count: 1, slides: [] };
+
+        // MIGRATION HELPER
+        function performMigration(importedState) {
+            let newSlides = [];
+            // If it has 'memory' (old format)
+            if (importedState.memory && (!importedState.slides || importedState.slides.length === 0)) {
+                // Get sorted keys (numbers)
+                const indices = Object.keys(importedState.memory).map(Number).sort((a,b)=>a-b);
+                if (indices.length > 0) {
+                    const minKey = indices[0];
+                    const maxKey = indices[indices.length-1];
+                    
+                    // Iterate from the minimum key found up to the maximum key
+                    // If minKey is 1, loop starts at 1. If 0, starts at 0.
+                    for(let i = minKey; i <= maxKey; i++) {
+                        const d = importedState.memory[i] || {};
+                        // Map to array (index always starts at 0)
+                        newSlides.push({ 
+                            type: 'pdf', 
+                            pdfPage: newSlides.length + 1, // Auto-increment PDF page
+                            header: d.header||"", 
+                            notes: d.notes||"", 
+                            drawings: d.drawings||[] 
+                        });
+                    }
+                }
+            } else if (importedState.slides) {
+                // Already new format
+                newSlides = importedState.slides;
+            }
+            
+            // Clean up count (ensure valid 1-based)
+            let newCount = importedState.count || 1;
+            if(newCount < 1) newCount = 1;
+            if(newCount > newSlides.length && newSlides.length > 0) newCount = newSlides.length;
+
+            return { count: newCount, slides: newSlides };
+        }
+
+        // Run migration on load if needed
+        if (state.memory) {
+            state = performMigration(state);
+            delete state.memory; // Clean up old key
+        }
         
+        // Safety Init
+        if (!state.slides || state.slides.length === 0) {
+            state.slides = [{ type: 'blank', header: '', notes: '', drawings: [] }];
+            state.count = 1;
+        }
+
         const MODES = ['NUM', 'PULSE', 'PDF'];
         let currentModeIndex = 0; 
         
@@ -388,12 +423,9 @@
         
         const display = document.getElementById('display');
         const slideLabel = document.getElementById('slideLabel');
-        
         const editor = document.getElementById('slideNotesEditor');
         const preview = document.getElementById('slideNotesPreview');
         const toggleBtn = document.getElementById('notes-mode-toggle');
-        let isEditorActive = false;
-        
         const pdfContainer = document.getElementById('pdf-render-container');
         const noPdfMsg = document.getElementById('no-pdf-msg');
         const modeStatus = document.getElementById('mode-status');
@@ -402,76 +434,95 @@
         const btnPen = document.getElementById('btn-pen');
         const btnEraser = document.getElementById('btn-eraser');
         
-        // SEARCH VARS
+        // SEARCH
         const searchInput = document.getElementById('search-input');
         const searchCount = document.getElementById('search-count');
         let searchMatches = []; 
         let currentMatchPos = -1;
 
         let timeoutHandle = null;
-        let notesViewMode = 'edit'; 
+        let isEditorActive = false;
 
         // Init
         updateUIForMode();
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_Project_Search_Highlight_Enter', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_PerfectIndex', JSON.stringify(state));
         }
 
-        // --- SEARCH LOGIC (Enter to Navigate) ---
+        // --- SLIDE MANAGER ---
+        function insertSlide(offset) {
+            handleInput();
+            const newSlide = { type: 'blank', header: '', notes: '', drawings: [] };
+            
+            // Insert Before (-1) -> index is current-1
+            // Insert After (1) -> index is current
+            let insertIndex = (offset === 1) ? state.count : state.count - 1;
+            
+            state.slides.splice(insertIndex, 0, newSlide);
+            
+            // If inserted before, we stay on same index (which is now new slide)
+            // If inserted after, we move to next index (which is new slide)
+            if (offset === 1) state.count++; 
+            
+            saveData();
+            updateDisplay();
+            if (MODES[currentModeIndex] === 'PDF') renderPage();
+        }
+
+        function deleteCurrentSlide() {
+            if (state.slides.length <= 1) { alert("Cannot delete the only slide."); return; }
+            if (!confirm("Delete current slide?")) return;
+            
+            const idx = state.count - 1;
+            state.slides.splice(idx, 1);
+            
+            if (state.count > state.slides.length) {
+                state.count = state.slides.length;
+            }
+            
+            saveData();
+            updateDisplay();
+            if (MODES[currentModeIndex] === 'PDF') renderPage();
+        }
+
+        // --- SEARCH LOGIC ---
         function performSearch() {
             const query = searchInput.value.toLowerCase().trim();
             searchMatches = [];
-            
-            // If empty, clear everything and refresh
+            currentMatchPos = -1;
+
             if (query.length === 0) {
-                currentMatchPos = -1;
                 searchCount.textContent = "0/0";
                 updateDisplay(); 
                 return;
             }
 
-            handleInput(); // Save current work
+            handleInput();
 
-            const indices = Object.keys(state.memory).map(Number).sort((a,b) => a-b);
-            if(indices.length === 0) return;
-            const maxIndex = indices[indices.length-1];
-
-            for (let i = 0; i <= maxIndex; i++) {
-                const data = state.memory[i];
-                if (!data) continue;
-                const header = (data.header || "").toLowerCase();
-                const notes = (data.notes || "").toLowerCase();
+            state.slides.forEach((slide, index) => {
+                const header = (slide.header || "").toLowerCase();
+                const notes = (slide.notes || "").toLowerCase();
                 if (header.includes(query) || notes.includes(query)) {
-                    searchMatches.push(i);
+                    searchMatches.push(index + 1); // Store as 1-based
                 }
-            }
+            });
 
             if (searchMatches.length > 0) {
-                // Find next match relative to current slide
-                const upcoming = searchMatches.findIndex(idx => idx >= state.count);
+                const upcoming = searchMatches.findIndex(num => num >= state.count);
                 currentMatchPos = (upcoming !== -1) ? upcoming : 0;
                 searchCount.textContent = `${currentMatchPos + 1}/${searchMatches.length}`;
             } else {
-                currentMatchPos = -1;
                 searchCount.textContent = "0/0";
             }
-            // Show highlights on current page if match exists there
             updateDisplay();
         }
 
         function nextMatch(dir) {
             if (searchMatches.length === 0) return;
-            
-            // Smart Jump Logic:
-            // If we are currently AT the slide indicated by match, move index.
-            // If we are NOT at the slide (e.g. first Enter press), just jump there without moving index.
-            if (state.count === searchMatches[currentMatchPos]) {
-                currentMatchPos += dir;
-            }
+            if (state.count === searchMatches[currentMatchPos]) currentMatchPos += dir;
 
-            // Wrap
             if (currentMatchPos >= searchMatches.length) currentMatchPos = 0;
             if (currentMatchPos < 0) currentMatchPos = searchMatches.length - 1;
 
@@ -479,9 +530,8 @@
             state.count = searchMatches[currentMatchPos];
             saveData();
             updateDisplay();
-            
             activatePreview(); 
-            if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(state.count + 1);
+            if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
 
         function clearSearch() {
@@ -490,53 +540,23 @@
             searchInput.blur();
         }
 
-        // --- SMART NOTES LOGIC ---
+        // --- NOTES LOGIC ---
         function activateEditor() {
             isEditorActive = true;
-            editor.style.display = 'block';
-            preview.style.display = 'none';
-            toggleBtn.textContent = '✏️'; 
-            editor.focus();
+            editor.style.display = 'block'; preview.style.display = 'none'; toggleBtn.textContent = '✏️'; editor.focus();
         }
-
         function activatePreview() {
             isEditorActive = false;
-            editor.style.display = 'none';
-            preview.style.display = 'block';
-            toggleBtn.textContent = '👁️'; 
-            updateDisplay(); // Force re-render with potential highlights
+            editor.style.display = 'none'; preview.style.display = 'block'; toggleBtn.textContent = '👁️'; updateDisplay();
         }
-
-        function toggleNotesModeManual() {
-            if(isEditorActive) activatePreview();
-            else activateEditor();
-        }
-
-        editor.addEventListener('blur', (e) => {
-            setTimeout(() => {
-                if (document.activeElement !== toggleBtn) {
-                    activatePreview();
-                }
-            }, 100);
-        });
-
-        // Auto-bullets
+        function toggleNotesModeManual() { if(isEditorActive) activatePreview(); else activateEditor(); }
+        editor.addEventListener('blur', (e) => { setTimeout(() => { if (document.activeElement !== toggleBtn) activatePreview(); }, 100); });
         editor.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const text = editor.value;
-                const lineStart = text.lastIndexOf('\n', start - 1) + 1;
-                const currentLine = text.substring(lineStart, start);
-                const match = currentLine.match(/^(\s*)([-*]|\d+\.)\s/);
-                if (match) {
-                    e.preventDefault();
-                    const prefix = match[0];
-                    const newText = text.substring(0, start) + '\n' + prefix + text.substring(end);
-                    editor.value = newText;
-                    editor.selectionStart = editor.selectionEnd = start + prefix.length + 1;
-                    handleInput(); 
-                }
+                const start = editor.selectionStart; const end = editor.selectionEnd; const val = editor.value;
+                const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+                const match = val.substring(lineStart, start).match(/^(\s*)([-*]|\d+\.)\s/);
+                if (match) { e.preventDefault(); const p = match[0]; const n = val.substring(0, start)+'\n'+p+val.substring(end); editor.value = n; editor.selectionStart = editor.selectionEnd = start + p.length + 1; handleInput(); }
             }
         });
 
@@ -548,8 +568,9 @@
             else { btnPen.classList.remove('active'); btnEraser.classList.add('active'); drawCanvas.style.cursor = 'cell'; }
         }
         function clearSlideDrawing() {
-            if(confirm("Clear drawings for this slide?")) {
-                if (state.memory[state.count]) { state.memory[state.count].drawings = []; saveData(); renderDrawings(); }
+            if(confirm("Clear drawings?")) {
+                const s = state.slides[state.count - 1];
+                if (s) { s.drawings = []; saveData(); renderDrawings(); }
             }
         }
         function toNorm(x, y) { return { x: x / drawCanvas.width, y: y / drawCanvas.height }; }
@@ -560,54 +581,60 @@
         }
         drawCanvas.addEventListener('mousedown', (e) => {
             const norm = getNormalizedPos(e);
-            if (currentTool === 'eraser') { isErasing = true; const px = toPixel(norm.x, norm.y); eraseStrokeAtInternal(px.x, px.y); } 
-            else { isDrawing = true; currentStrokes.push({ points: [norm] }); const px = toPixel(norm.x, norm.y); drawCtx.lineWidth = 3; drawCtx.strokeStyle = 'red'; drawCtx.lineCap = 'round'; drawCtx.beginPath(); drawCtx.moveTo(px.x, px.y); drawCtx.lineTo(px.x, px.y); drawCtx.stroke(); }
+            if (currentTool === 'eraser') { isErasing = true; eraseStrokeAtInternal(toPixel(norm.x, norm.y)); } 
+            else { isDrawing = true; currentStrokes.push({ points: [norm] }); const px = toPixel(norm.x, norm.y); drawCtx.lineWidth=3; drawCtx.strokeStyle='red'; drawCtx.lineCap='round'; drawCtx.beginPath(); drawCtx.moveTo(px.x, px.y); drawCtx.lineTo(px.x, px.y); drawCtx.stroke(); }
         });
         drawCanvas.addEventListener('mousemove', (e) => {
-            const norm = getNormalizedPos(e);
-            const px = toPixel(norm.x, norm.y);
-            if (currentTool === 'eraser' && isErasing) { eraseStrokeAtInternal(px.x, px.y); return; }
+            const norm = getNormalizedPos(e); const px = toPixel(norm.x, norm.y);
+            if (currentTool === 'eraser' && isErasing) { eraseStrokeAtInternal(px); return; }
             if (currentTool === 'pen' && isDrawing) {
-                const currentPath = currentStrokes[currentStrokes.length - 1];
-                const lastNorm = currentPath.points[currentPath.points.length - 1];
-                const lastPx = toPixel(lastNorm.x, lastNorm.y);
-                drawCtx.lineWidth = 3; drawCtx.strokeStyle = 'red'; drawCtx.lineCap = 'round'; drawCtx.beginPath(); drawCtx.moveTo(lastPx.x, lastPx.y); drawCtx.lineTo(px.x, px.y); drawCtx.stroke();
-                currentPath.points.push(norm);
+                const path = currentStrokes[currentStrokes.length - 1];
+                const last = path.points[path.points.length - 1]; const lastPx = toPixel(last.x, last.y);
+                drawCtx.lineWidth=3; drawCtx.strokeStyle='red'; drawCtx.lineCap='round'; drawCtx.beginPath(); drawCtx.moveTo(lastPx.x, lastPx.y); drawCtx.lineTo(px.x, px.y); drawCtx.stroke();
+                path.points.push(norm);
             }
         });
         drawCanvas.addEventListener('mouseup', endAction); drawCanvas.addEventListener('mouseout', endAction);
-        function endAction() { if(isDrawing) { isDrawing = false; saveDrawingsToState(); } if(isErasing) { isErasing = false; } }
-        function eraseStrokeAtInternal(internalX, internalY) {
-            const data = state.memory[state.count] || {}; const drawings = data.drawings || []; if(drawings.length === 0) return;
-            const eraserRadius = 25; 
-            const remainingDrawings = drawings.filter(path => {
-                const isTouched = path.points.some(ptNorm => { const ptPx = toPixel(ptNorm.x, ptNorm.y); const dist = Math.hypot(ptPx.x - internalX, ptPx.y - internalY); return dist < eraserRadius; });
-                return !isTouched; 
+        function endAction() { if(isDrawing) { isDrawing = false; saveDrawingsToState(); } if(isErasing) isErasing = false; }
+        
+        function eraseStrokeAtInternal(pos) {
+            const slide = state.slides[state.count - 1];
+            const drawings = slide ? (slide.drawings || []) : [];
+            if(drawings.length === 0) return;
+            const remaining = drawings.filter(path => {
+                return !path.points.some(pt => {
+                    const pPx = toPixel(pt.x, pt.y);
+                    return Math.hypot(pPx.x - pos.x, pPx.y - pos.y) < 25;
+                });
             });
-            if(remainingDrawings.length !== drawings.length) { state.memory[state.count].drawings = remainingDrawings; saveData(); renderDrawings(); }
+            if(remaining.length !== drawings.length) { slide.drawings = remaining; saveData(); renderDrawings(); }
         }
         function saveDrawingsToState() {
-            if (!state.memory[state.count]) state.memory[state.count] = {};
-            const existing = state.memory[state.count].drawings || [];
-            state.memory[state.count].drawings = existing.concat(currentStrokes);
-            currentStrokes = []; saveData();
+            const slide = state.slides[state.count - 1];
+            if(slide) {
+                if(!slide.drawings) slide.drawings = [];
+                slide.drawings = slide.drawings.concat(currentStrokes);
+                currentStrokes = []; saveData();
+            }
         }
         function renderDrawings() {
-            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-            const data = state.memory[state.count] || {}; const drawings = data.drawings || [];
+            drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+            const slide = state.slides[state.count - 1];
+            const drawings = slide ? (slide.drawings || []) : [];
             drawings.forEach(path => {
-                drawCtx.strokeStyle = 'red'; drawCtx.lineWidth = 3; drawCtx.lineCap = 'round'; drawCtx.lineJoin = 'round'; if (path.points.length < 1) return;
+                drawCtx.strokeStyle='red'; drawCtx.lineWidth=3; drawCtx.lineCap='round'; drawCtx.lineJoin='round'; if(path.points.length<1) return;
                 drawCtx.beginPath(); const start = toPixel(path.points[0].x, path.points[0].y); drawCtx.moveTo(start.x, start.y);
-                for (let i = 1; i < path.points.length; i++) { const pt = toPixel(path.points[i].x, path.points[i].y); drawCtx.lineTo(pt.x, pt.y); } drawCtx.stroke();
+                for(let i=1; i<path.points.length; i++) { const p = toPixel(path.points[i].x, path.points[i].y); drawCtx.lineTo(p.x, p.y); } drawCtx.stroke();
             });
         }
         function resizeDrawLayer() { drawCanvas.width = pdfCanvas.width; drawCanvas.height = pdfCanvas.height; renderDrawings(); }
 
         // --- APP LOGIC ---
         function handleInput() {
-            if (!state.memory[state.count]) state.memory[state.count] = {};
-            state.memory[state.count].header = slideLabel.innerText;
-            state.memory[state.count].notes = editor.value; 
+            const idx = state.count - 1;
+            if(!state.slides[idx]) state.slides[idx] = { type:'blank', drawings:[] };
+            state.slides[idx].header = slideLabel.innerText;
+            state.slides[idx].notes = editor.value; 
             saveData();
         }
         slideLabel.addEventListener('input', handleInput);
@@ -617,26 +644,46 @@
         function handleNav(direction) {
             const mode = MODES[currentModeIndex];
             if(isEditorActive) activatePreview();
-            if (direction === 'forward') { state.count++; if (mode === 'PULSE') triggerFlash(">>>"); } 
-            else if (direction === 'backward') { if (state.count > 0) { state.count--; if (mode === 'PULSE') triggerFlash("<<<"); } }
+            
+            if (direction === 'forward') {
+                // Auto-extend logic
+                if (state.count === state.slides.length) {
+                    let nextType = 'blank';
+                    let nextPdfPage = null;
+                    if (pdfDoc) {
+                        let lastPage = 0;
+                        for(let i = state.slides.length - 1; i >= 0; i--) {
+                            if(state.slides[i].type === 'pdf') { lastPage = state.slides[i].pdfPage; break; }
+                        }
+                        if(lastPage < pdfDoc.numPages) { nextType='pdf'; nextPdfPage = lastPage+1; }
+                    }
+                    state.slides.push({ type: nextType, pdfPage: nextPdfPage, header: "", notes: "", drawings: [] });
+                }
+                
+                state.count++;
+                if (mode === 'PULSE') triggerFlash(">>>");
+            } 
+            else if (direction === 'backward') { 
+                if (state.count > 1) { 
+                    state.count--; 
+                    if (mode === 'PULSE') triggerFlash("<<<"); 
+                } 
+            }
             saveData(); updateDisplay();
-            if (mode === 'PDF' && pdfDoc) renderPage(state.count + 1);
+            if (mode === 'PDF') renderPage();
         }
 
         function updateDisplay() {
             const mode = MODES[currentModeIndex];
-            const data = state.memory[state.count] || {};
-            if (mode !== 'PDF') slideLabel.innerText = data.header || "";
-            const noteContent = data.notes || "";
+            const slide = state.slides[state.count - 1] || { type:'blank', header:'', notes:'' };
+
+            slideLabel.innerText = slide.header || "";
+            const noteContent = slide.notes || "";
             editor.value = noteContent;
             
-            // --- UPDATED RENDERER WITH HIGHLIGHTING ---
             let htmlContent = "";
-            if (typeof marked !== 'undefined') { 
-                htmlContent = noteContent.trim() ? marked.parse(noteContent) : '<span class="empty-placeholder">Click to add notes...</span>'; 
-            } else { 
-                htmlContent = noteContent; 
-            }
+            if (typeof marked !== 'undefined') htmlContent = noteContent.trim() ? marked.parse(noteContent) : '<span class="empty-placeholder">Click to add notes...</span>';
+            else htmlContent = noteContent;
 
             const searchTerm = searchInput.value.trim();
             if (searchTerm.length > 0) {
@@ -658,13 +705,13 @@
         function cycleMode() {
             currentModeIndex = (currentModeIndex + 1) % MODES.length;
             updateUIForMode();
-            if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(state.count + 1);
+            if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
 
         function updateUIForMode() {
             const mode = MODES[currentModeIndex];
             if (mode === 'PDF') {
-                slideLabel.style.display = 'none'; pdfContainer.style.display = 'flex'; modeStatus.textContent = "Mode: PDF Slides";
+                slideLabel.style.display = 'block'; pdfContainer.style.display = 'flex'; modeStatus.textContent = "Mode: PDF Slides";
                 drawCanvas.classList.add('active'); drawingControls.style.display = 'flex'; setTool('pen'); 
             } else {
                 slideLabel.style.display = 'block'; pdfContainer.style.display = 'none'; modeStatus.textContent = (mode === 'NUM') ? "Mode: Standard" : "Mode: No Numbers";
@@ -682,18 +729,39 @@
                 fileReader.onload = function() {
                     const typedarray = new Uint8Array(this.result);
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
-                        pdfDoc = pdfDoc_; noPdfMsg.style.display = "none";
-                        if (MODES[currentModeIndex] === 'PDF') renderPage(state.count + 1);
+                        pdfDoc = pdfDoc_;
+                        noPdfMsg.style.display = "none";
+                        // Default Init
+                        if (state.slides.length <= 1 && !state.slides[0].notes && !state.slides[0].header) {
+                            state.slides = [];
+                            for(let i=1; i<=pdfDoc.numPages; i++) {
+                                state.slides.push({ type:'pdf', pdfPage:i, drawings:[] });
+                            }
+                            state.count = 1;
+                            saveData();
+                            updateDisplay();
+                        }
+                        if (MODES[currentModeIndex] === 'PDF') renderPage();
                     });
                 };
                 fileReader.readAsArrayBuffer(file);
             }
         });
 
-        function renderPage(num) {
+        function renderPage() {
             if (renderTask) renderTask.cancel();
-            if (!pdfDoc || num < 1 || num > pdfDoc.numPages) return;
-            pdfDoc.getPage(num).then(function(page) {
+            const slide = state.slides[state.count - 1];
+            if (!slide || slide.type === 'blank') {
+                pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+                if(pdfCanvas.width < 100) { pdfCanvas.width=800; pdfCanvas.height=450; } 
+                resizeDrawLayer();
+                return;
+            }
+            if (!pdfDoc) return;
+            const pageNum = slide.pdfPage || state.count;
+            if(pageNum > pdfDoc.numPages) { pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height); return; }
+
+            pdfDoc.getPage(pageNum).then(function(page) {
                 const containerHeight = pdfContainer.clientHeight;
                 const unscaledViewport = page.getViewport({scale: 1});
                 const scale = containerHeight / unscaledViewport.height;
@@ -706,7 +774,7 @@
             });
         }
 
-        // --- JSON EXPORT ---
+        // --- JSON EXPORT (WITH MIGRATION) ---
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
@@ -718,51 +786,32 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
-                    state = JSON.parse(event.target.result);
-                    if(isNaN(state.count)) state.count = 0;
+                    let imported = JSON.parse(event.target.result);
+                    // Force migrate logic
+                    if (imported.memory) imported = performMigration(imported);
+                    state = imported;
                     saveData(); updateDisplay();
-                    if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage(state.count + 1);
-                    alert("Notes & Drawings loaded!");
+                    if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
+                    alert("Notes loaded!");
                 } catch(err) { alert("Error reading JSON"); }
             };
             reader.readAsText(file);
         });
 
         // --- UTILS ---
-        function toggleMenu() { controlsPanel.classList.toggle('active'); 
-            if(controlsPanel.classList.contains('active')) setTimeout(() => searchInput.focus(), 100);
-        }
+        function toggleMenu() { controlsPanel.classList.toggle('active'); if(controlsPanel.classList.contains('active')) setTimeout(()=>searchInput.focus(),100); }
         function updateNumberSize(val) { display.style.fontSize = val + "px"; }
         function updateTextSize(val) { editor.style.fontSize = val + "px"; preview.style.fontSize = val + "px"; slideLabel.style.fontSize = (val * 1.5) + "px"; }
         function updatePdfSize(val) { pdfContainer.style.height = val + "vh"; }
-        function refreshPdfResolution() { if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(state.count + 1); }
-        function clearAllData() {
-            if(confirm("Reset all?")) { state = { count: 0, memory: {} }; saveData(); updateDisplay(); if(pdfDoc) renderPage(1); }
-        }
+        function refreshPdfResolution() { if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(); }
+        function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; saveData(); location.reload(); } }
 
-        // --- SEARCH INPUT LISTENER (For Enter Navigation) ---
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if(e.shiftKey) nextMatch(-1);
-                else nextMatch(1);
-            }
-        });
+        // --- KEYS ---
+        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if(e.shiftKey) nextMatch(-1); else nextMatch(1); } });
 
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') { 
-                clearSearch(); // Clear search on Esc
-                activatePreview(); 
-                if(controlsPanel.classList.contains('active')) toggleMenu(); 
-                document.activeElement.blur(); 
-                return; 
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'f') { 
-                e.preventDefault(); 
-                if(!controlsPanel.classList.contains('active')) toggleMenu(); 
-                searchInput.focus(); 
-                return; 
-            }
+            if (e.key === 'Escape') { activatePreview(); if(document.activeElement === searchInput) { clearSearch(); toggleMenu(); } document.activeElement.blur(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); if(!controlsPanel.classList.contains('active')) toggleMenu(); searchInput.focus(); return; }
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); handleNav('forward'); return; }
                 if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); handleNav('backward'); return; }
