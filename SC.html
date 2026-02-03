@@ -332,7 +332,7 @@
         });
 
         // --- STATE ---
-        const savedData = localStorage.getItem('slideTrackerData_Final_SmartLists'); 
+        const savedData = localStorage.getItem('slideTrackerData_Final_Safety'); 
         let state = savedData ? JSON.parse(savedData) : { count: 1, slides: [] };
 
         // MIGRATION
@@ -389,7 +389,7 @@
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_Final_SmartLists', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_Final_Safety', JSON.stringify(state));
         }
 
         // --- SLIDE MANAGER ---
@@ -461,63 +461,37 @@
         function toggleNotesModeManual() { if(isEditorActive) activatePreview(); else activateEditor(); }
         editor.addEventListener('blur', (e) => { setTimeout(() => { if (document.activeElement !== toggleBtn) activatePreview(); }, 100); });
         
-        // --- SMART EDITOR KEYS (TAB & ENTER) ---
+        // --- SMART EDITOR KEYS ---
         editor.addEventListener('keydown', (e) => {
-            // 1. TAB INDENT / UN-INDENT
             if (e.key === 'Tab') {
                 e.preventDefault();
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const value = editor.value;
+                const start = editor.selectionStart; const end = editor.selectionEnd; const value = editor.value;
                 const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-                
                 if (e.shiftKey) {
-                    // Outdent (Shift+Tab): Remove up to 4 spaces at line start
                     const currentLine = value.substring(lineStart);
                     const match = currentLine.match(/^ {1,4}/);
                     if (match) {
                         const removeLen = match[0].length;
                         editor.value = value.substring(0, lineStart) + value.substring(lineStart + removeLen);
-                        editor.selectionStart = Math.max(lineStart, start - removeLen);
-                        editor.selectionEnd = Math.max(lineStart, end - removeLen);
+                        editor.selectionStart = Math.max(lineStart, start - removeLen); editor.selectionEnd = Math.max(lineStart, end - removeLen);
                     }
                 } else {
-                    // Indent (Tab): Insert 4 spaces at line start
                     editor.value = value.substring(0, lineStart) + "    " + value.substring(lineStart);
-                    editor.selectionStart = start + 4;
-                    editor.selectionEnd = end + 4;
+                    editor.selectionStart = start + 4; editor.selectionEnd = end + 4;
                 }
                 handleInput();
             }
-            
-            // 2. AUTO-LIST ON ENTER
             if (e.key === 'Enter') {
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const val = editor.value;
+                const start = editor.selectionStart; const end = editor.selectionEnd; const val = editor.value;
                 const lineStart = val.lastIndexOf('\n', start - 1) + 1;
-                const currentLine = val.substring(lineStart, start);
-                
-                const match = currentLine.match(/^(\s*)([-*]|\d+\.)\s/);
-                
+                const match = val.substring(lineStart, start).match(/^(\s*)([-*]|\d+\.)\s/);
                 if (match) {
-                    e.preventDefault();
-                    const indent = match[1];
-                    const marker = match[2];
-                    
+                    e.preventDefault(); const indent = match[1]; const marker = match[2];
                     let nextMarker = marker;
-                    // Increment numbers
-                    if (/^\d+\.$/.test(marker)) {
-                        const num = parseInt(marker);
-                        nextMarker = (num + 1) + ".";
-                    }
-                    
+                    if (/^\d+\.$/.test(marker)) { const num = parseInt(marker); nextMarker = (num + 1) + "."; }
                     const prefix = `\n${indent}${nextMarker} `;
                     const newVal = val.substring(0, start) + prefix + val.substring(end);
-                    
-                    editor.value = newVal;
-                    editor.selectionStart = editor.selectionEnd = start + prefix.length;
-                    handleInput();
+                    editor.value = newVal; editor.selectionStart = editor.selectionEnd = start + prefix.length; handleInput();
                 }
             }
         });
@@ -651,7 +625,7 @@
             }
             preview.innerHTML = htmlContent;
 
-            // Render Math (KaTeX)
+            // Render Math
             if (typeof renderMathInElement !== 'undefined') {
                 renderMathInElement(preview, {
                     delimiters: [
@@ -743,13 +717,32 @@
             });
         }
 
-        // --- JSON EXPORT ---
+        // --- JSON EXPORT & SAFETY IMPORT ---
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
             const date = new Date().toISOString().slice(0,10); downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
             document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
         }
+
+        function checkIfDirty() {
+            // "Dirty" means there is data that might be lost
+            if (!state.slides || state.slides.length === 0) return false;
+            // If more than 1 slide, or the first slide has text/drawing, it's dirty
+            if (state.slides.length > 1) return true;
+            const s = state.slides[0];
+            return (s.header.trim() !== "" || s.notes.trim() !== "" || s.drawings.length > 0);
+        }
+
+        document.getElementById('json-upload').addEventListener('click', function(e) {
+            // Intercept click to show warning
+            if (checkIfDirty()) {
+                if (!confirm("Current work will be replaced. Continue?")) {
+                    e.preventDefault(); // Stop file dialog
+                }
+            }
+        });
+
         document.getElementById('json-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -775,6 +768,8 @@
                 } catch(err) { alert("Error reading JSON"); }
             };
             reader.readAsText(file);
+            // Clear value so same file can be loaded again if needed
+            e.target.value = '';
         });
 
         // --- UTILS ---
