@@ -8,6 +8,13 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+
     <style>
         /* --- LAYOUT RESET --- */
         * { box-sizing: border-box; }
@@ -31,17 +38,13 @@
             padding: 10px 20px;
             z-index: 50;
             position: relative; 
-            
-            /* VERTICAL STACK FOR HEADER + PDF */
             display: flex;
             flex-direction: column;
             justify-content: center; 
             align-items: center;
-            
             min-height: 100px; 
         }
 
-        /* Number/Arrow in Top Right */
         #display {
             position: absolute;
             right: 20px;
@@ -57,7 +60,6 @@
             text-shadow: 0 0 5px black;
         }
 
-        /* --- CENTER CONTENT SWITCHER --- */
         #slideLabel {
             background: transparent;
             border-bottom: 1px solid #333; 
@@ -65,7 +67,7 @@
             font-size: 30px; 
             outline: none;
             padding-bottom: 2px;
-            margin-bottom: 10px; /* Space between header and PDF */
+            margin-bottom: 10px;
             min-width: 200px;
             max-width: 60%; 
             text-align: center; 
@@ -75,7 +77,7 @@
         }
         #slideLabel:focus { border-bottom: 1px solid #fff; }
 
-        /* --- PDF & DRAWING CONTAINER --- */
+        /* --- PDF & DRAWING --- */
         #pdf-render-container {
             display: none; 
             justify-content: center;
@@ -86,7 +88,6 @@
             transition: height 0.1s ease; 
         }
 
-        /* Layer 1: The PDF */
         #the-canvas {
             max-height: 100%; 
             max-width: 80%;
@@ -96,7 +97,6 @@
             z-index: 1;
         }
 
-        /* Layer 2: The Drawing Layer */
         #draw-canvas {
             max-height: 100%; 
             max-width: 80%;
@@ -111,15 +111,9 @@
             border: 1px dashed rgba(255, 255, 255, 0.2); 
         }
 
-        #no-pdf-msg {
-            color: #444;
-            font-style: italic;
-            position: absolute;
-            font-size: 14px;
-            z-index: 0;
-        }
+        #no-pdf-msg { color: #444; font-style: italic; position: absolute; font-size: 14px; z-index: 0; }
 
-        /* --- 2. THE SCROLLING NOTES AREA --- */
+        /* --- 2. NOTES AREA --- */
         #notes-container {
             flex: 1; 
             position: relative;
@@ -157,6 +151,7 @@
             resize: none;
             line-height: 1.6;
             display: none; 
+            tab-size: 4; 
         }
 
         /* The Preview */
@@ -170,86 +165,56 @@
             cursor: text; 
         }
 
-        /* Markdown Styling */
-        #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        #slideNotesPreview code { background: #222; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #ff7b72; }
-        #slideNotesPreview ul, #slideNotesPreview ol { padding-left: 25px; }
-        #slideNotesPreview blockquote { border-left: 3px solid #444; margin: 0; padding-left: 15px; color: #777; font-style: italic; }
-        #slideNotesPreview strong { color: #fff; }
-        #slideNotesPreview a { color: #58a6ff; }
-        mark { background-color: #ffeb3b; color: black; border-radius: 2px; padding: 0 2px; }
-        .empty-placeholder { color: #444; font-style: italic; }
+        /* MARKDOWN STYLES */
+        #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        #slideNotesPreview ul, #slideNotesPreview ol { padding-left: 25px; margin-bottom: 10px; }
+        #slideNotesPreview p { margin-bottom: 10px; }
+        #slideNotesPreview blockquote { border-left: 4px solid #4CAF50; margin: 10px 0; padding-left: 15px; color: #aaa; font-style: italic; background: #111; padding: 5px;}
+        #slideNotesPreview a { color: #58a6ff; text-decoration: none; }
+        mark { background-color: #ffeb3b; color: black; border-radius: 2px; padding: 0 2px; font-weight: bold; }
+        
+        /* Code Blocks */
+        #slideNotesPreview pre {
+            background: #1e1e1e !important;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #333;
+            margin: 10px 0;
+        }
+        #slideNotesPreview code { font-family: 'Consolas', 'Courier New', monospace; font-size: 15px; }
+        #slideNotesPreview :not(pre) > code { background: #2d2d2d; padding: 2px 5px; border-radius: 4px; color: #d19a66; border: 1px solid #444; }
 
-        /* Tiny Manual Toggle Button */
+        /* Tables */
+        #slideNotesPreview table { border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 16px; border: 1px solid #444; }
+        #slideNotesPreview th, #slideNotesPreview td { border: 1px solid #444; padding: 8px 12px; text-align: left; }
+        #slideNotesPreview th { background-color: #222; color: #fff; font-weight: bold; }
+        #slideNotesPreview tr:nth-child(even) { background-color: #111; }
+        #slideNotesPreview tr:nth-child(odd) { background-color: #161616; }
+
         #notes-mode-toggle {
             position: absolute; top: 10px; right: 20px; z-index: 100;
             background: transparent; border: 1px solid #333; color: #555; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.3; transition: opacity 0.2s;
         }
         #notes-mode-toggle:hover { opacity: 1; color: #fff; border-color: #666; }
 
-        /* --- SETTINGS MENU --- */
+        /* --- SETTINGS --- */
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
-        
-        #gear-btn {
-            background: transparent;
-            color: #555;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 5px;
-            transition: color 0.2s;
-        }
+        #gear-btn { background: transparent; color: #555; border: none; font-size: 24px; cursor: pointer; padding: 5px; transition: color 0.2s; }
         #gear-btn:hover { color: #fff; }
 
         #controls-panel {
-            display: none;
-            margin-top: 5px;
-            background: #111;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            flex-direction: column;
-            gap: 15px;
-            width: 300px; 
+            display: none; margin-top: 5px; background: #111; padding: 15px;
+            border-radius: 8px; border: 1px solid #333; flex-direction: column; gap: 15px; width: 300px; 
         }
         #controls-panel.active { display: flex; }
 
-        button.action-btn {
-            padding: 8px;
-            font-size: 12px;
-            cursor: pointer;
-            background: #000;
-            color: #ddd;
-            border: 1px solid #444;
-            border-radius: 4px;
-        }
+        button.action-btn { padding: 8px; font-size: 12px; cursor: pointer; background: #000; color: #ddd; border: 1px solid #444; border-radius: 4px; }
         button.action-btn:hover { background: #222; }
         
-        .toolbar {
-            display: flex;
-            gap: 5px;
-            background: #222;
-            padding: 5px;
-            border-radius: 5px;
-        }
-        
-        .tool-btn {
-            flex: 1;
-            padding: 5px;
-            font-size: 11px;
-            cursor: pointer;
-            background: #111;
-            color: #888;
-            border: 1px solid #444;
-            border-radius: 3px;
-        }
-        
-        .tool-btn.active {
-            background: #444;
-            color: #fff;
-            border-color: #666;
-            font-weight: bold;
-        }
+        .toolbar { display: flex; gap: 5px; background: #222; padding: 5px; border-radius: 5px; }
+        .tool-btn { flex: 1; padding: 5px; font-size: 11px; cursor: pointer; background: #111; color: #888; border: 1px solid #444; border-radius: 3px; }
+        .tool-btn.active { background: #444; color: #fff; border-color: #666; font-weight: bold; }
 
         #export-btn { border-color: #4CAF50; color: #4CAF50; }
         #export-btn:hover { background: #1b331c; }
@@ -277,6 +242,7 @@
         input[type=file] { font-size: 12px; color: #aaa; }
         #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
         #clear-data-btn { color: #ff4444; border-color: #552222; }
+        .empty-placeholder { color: #444; font-style: italic; }
 
     </style>
 </head>
@@ -350,69 +316,45 @@
     <div id="notes-container">
         <button id="notes-mode-toggle" title="Toggle Edit/Preview" onclick="toggleNotesModeManual()">👁️</button>
         <div id="notes-wrapper">
-            <textarea id="slideNotesEditor" placeholder="Type Markdown here..."></textarea>
+            <textarea id="slideNotesEditor" placeholder="Type Markdown here... (Math: $x^2$, Code: ```js ...)"></textarea>
             <div id="slideNotesPreview" onclick="activateEditor()"></div>
         </div>
     </div>
 
     <script>
-        // --- STATE & MIGRATION ---
-        const savedData = localStorage.getItem('slideTrackerData_PerfectIndex'); 
+        // --- CONFIGURE LIBRARIES ---
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) { return hljs.highlight(code, { language: lang }).value; }
+                return hljs.highlightAuto(code).value;
+            },
+            langPrefix: 'hljs language-'
+        });
+
+        // --- STATE ---
+        const savedData = localStorage.getItem('slideTrackerData_Final_SmartLists'); 
         let state = savedData ? JSON.parse(savedData) : { count: 1, slides: [] };
 
-        // MIGRATION HELPER
-        function performMigration(importedState) {
-            let newSlides = [];
-            // If it has 'memory' (old format)
-            if (importedState.memory && (!importedState.slides || importedState.slides.length === 0)) {
-                // Get sorted keys (numbers)
-                const indices = Object.keys(importedState.memory).map(Number).sort((a,b)=>a-b);
-                if (indices.length > 0) {
-                    const minKey = indices[0];
-                    const maxKey = indices[indices.length-1];
-                    
-                    // Iterate from the minimum key found up to the maximum key
-                    // If minKey is 1, loop starts at 1. If 0, starts at 0.
-                    for(let i = minKey; i <= maxKey; i++) {
-                        const d = importedState.memory[i] || {};
-                        // Map to array (index always starts at 0)
-                        newSlides.push({ 
-                            type: 'pdf', 
-                            pdfPage: newSlides.length + 1, // Auto-increment PDF page
-                            header: d.header||"", 
-                            notes: d.notes||"", 
-                            drawings: d.drawings||[] 
-                        });
-                    }
-                }
-            } else if (importedState.slides) {
-                // Already new format
-                newSlides = importedState.slides;
+        // MIGRATION
+        if (state.memory && (!state.slides || state.slides.length === 0)) {
+            state.slides = [];
+            const indices = Object.keys(state.memory).map(Number).sort((a,b)=>a-b);
+            const maxIdx = indices.length > 0 ? indices[indices.length-1] : 0;
+            for(let i=0; i<=maxIdx; i++) {
+                const d = state.memory[i] || {};
+                state.slides.push({ type: 'pdf', pdfPage: i+1, header: d.header||"", notes: d.notes||"", drawings: d.drawings||[] });
             }
-            
-            // Clean up count (ensure valid 1-based)
-            let newCount = importedState.count || 1;
-            if(newCount < 1) newCount = 1;
-            if(newCount > newSlides.length && newSlides.length > 0) newCount = newSlides.length;
-
-            return { count: newCount, slides: newSlides };
-        }
-
-        // Run migration on load if needed
-        if (state.memory) {
-            state = performMigration(state);
-            delete state.memory; // Clean up old key
+            delete state.memory;
         }
         
-        // Safety Init
         if (!state.slides || state.slides.length === 0) {
             state.slides = [{ type: 'blank', header: '', notes: '', drawings: [] }];
             state.count = 1;
         }
+        if(state.count < 1) state.count = 1;
 
         const MODES = ['NUM', 'PULSE', 'PDF'];
         let currentModeIndex = 0; 
-        
         let pdfDoc = null;
         let renderTask = null;
 
@@ -420,7 +362,6 @@
         const drawCanvas = document.getElementById('draw-canvas');
         const pdfCtx = pdfCanvas.getContext('2d');
         const drawCtx = drawCanvas.getContext('2d');
-        
         const display = document.getElementById('display');
         const slideLabel = document.getElementById('slideLabel');
         const editor = document.getElementById('slideNotesEditor');
@@ -448,24 +389,16 @@
         updateDisplay();
 
         function saveData() {
-            localStorage.setItem('slideTrackerData_PerfectIndex', JSON.stringify(state));
+            localStorage.setItem('slideTrackerData_Final_SmartLists', JSON.stringify(state));
         }
 
         // --- SLIDE MANAGER ---
         function insertSlide(offset) {
             handleInput();
             const newSlide = { type: 'blank', header: '', notes: '', drawings: [] };
-            
-            // Insert Before (-1) -> index is current-1
-            // Insert After (1) -> index is current
             let insertIndex = (offset === 1) ? state.count : state.count - 1;
-            
             state.slides.splice(insertIndex, 0, newSlide);
-            
-            // If inserted before, we stay on same index (which is now new slide)
-            // If inserted after, we move to next index (which is new slide)
             if (offset === 1) state.count++; 
-            
             saveData();
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
@@ -474,14 +407,9 @@
         function deleteCurrentSlide() {
             if (state.slides.length <= 1) { alert("Cannot delete the only slide."); return; }
             if (!confirm("Delete current slide?")) return;
-            
             const idx = state.count - 1;
             state.slides.splice(idx, 1);
-            
-            if (state.count > state.slides.length) {
-                state.count = state.slides.length;
-            }
-            
+            if (state.count > state.slides.length) state.count = state.slides.length;
             saveData();
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
@@ -492,40 +420,26 @@
             const query = searchInput.value.toLowerCase().trim();
             searchMatches = [];
             currentMatchPos = -1;
-
-            if (query.length === 0) {
-                searchCount.textContent = "0/0";
-                updateDisplay(); 
-                return;
-            }
-
+            if (query.length === 0) { searchCount.textContent = "0/0"; updateDisplay(); return; }
             handleInput();
-
             state.slides.forEach((slide, index) => {
                 const header = (slide.header || "").toLowerCase();
                 const notes = (slide.notes || "").toLowerCase();
-                if (header.includes(query) || notes.includes(query)) {
-                    searchMatches.push(index + 1); // Store as 1-based
-                }
+                if (header.includes(query) || notes.includes(query)) { searchMatches.push(index + 1); }
             });
-
             if (searchMatches.length > 0) {
                 const upcoming = searchMatches.findIndex(num => num >= state.count);
                 currentMatchPos = (upcoming !== -1) ? upcoming : 0;
                 searchCount.textContent = `${currentMatchPos + 1}/${searchMatches.length}`;
-            } else {
-                searchCount.textContent = "0/0";
-            }
+            } else { searchCount.textContent = "0/0"; }
             updateDisplay();
         }
 
         function nextMatch(dir) {
             if (searchMatches.length === 0) return;
             if (state.count === searchMatches[currentMatchPos]) currentMatchPos += dir;
-
             if (currentMatchPos >= searchMatches.length) currentMatchPos = 0;
             if (currentMatchPos < 0) currentMatchPos = searchMatches.length - 1;
-
             searchCount.textContent = `${currentMatchPos + 1}/${searchMatches.length}`;
             state.count = searchMatches[currentMatchPos];
             saveData();
@@ -533,12 +447,7 @@
             activatePreview(); 
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
-
-        function clearSearch() {
-            searchInput.value = "";
-            performSearch();
-            searchInput.blur();
-        }
+        function clearSearch() { searchInput.value = ""; performSearch(); searchInput.blur(); }
 
         // --- NOTES LOGIC ---
         function activateEditor() {
@@ -551,12 +460,65 @@
         }
         function toggleNotesModeManual() { if(isEditorActive) activatePreview(); else activateEditor(); }
         editor.addEventListener('blur', (e) => { setTimeout(() => { if (document.activeElement !== toggleBtn) activatePreview(); }, 100); });
+        
+        // --- SMART EDITOR KEYS (TAB & ENTER) ---
         editor.addEventListener('keydown', (e) => {
+            // 1. TAB INDENT / UN-INDENT
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const value = editor.value;
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                
+                if (e.shiftKey) {
+                    // Outdent (Shift+Tab): Remove up to 4 spaces at line start
+                    const currentLine = value.substring(lineStart);
+                    const match = currentLine.match(/^ {1,4}/);
+                    if (match) {
+                        const removeLen = match[0].length;
+                        editor.value = value.substring(0, lineStart) + value.substring(lineStart + removeLen);
+                        editor.selectionStart = Math.max(lineStart, start - removeLen);
+                        editor.selectionEnd = Math.max(lineStart, end - removeLen);
+                    }
+                } else {
+                    // Indent (Tab): Insert 4 spaces at line start
+                    editor.value = value.substring(0, lineStart) + "    " + value.substring(lineStart);
+                    editor.selectionStart = start + 4;
+                    editor.selectionEnd = end + 4;
+                }
+                handleInput();
+            }
+            
+            // 2. AUTO-LIST ON ENTER
             if (e.key === 'Enter') {
-                const start = editor.selectionStart; const end = editor.selectionEnd; const val = editor.value;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const val = editor.value;
                 const lineStart = val.lastIndexOf('\n', start - 1) + 1;
-                const match = val.substring(lineStart, start).match(/^(\s*)([-*]|\d+\.)\s/);
-                if (match) { e.preventDefault(); const p = match[0]; const n = val.substring(0, start)+'\n'+p+val.substring(end); editor.value = n; editor.selectionStart = editor.selectionEnd = start + p.length + 1; handleInput(); }
+                const currentLine = val.substring(lineStart, start);
+                
+                const match = currentLine.match(/^(\s*)([-*]|\d+\.)\s/);
+                
+                if (match) {
+                    e.preventDefault();
+                    const indent = match[1];
+                    const marker = match[2];
+                    
+                    let nextMarker = marker;
+                    // Increment numbers
+                    if (/^\d+\.$/.test(marker)) {
+                        const num = parseInt(marker);
+                        nextMarker = (num + 1) + ".";
+                    }
+                    
+                    const prefix = `\n${indent}${nextMarker} `;
+                    const newVal = val.substring(0, start) + prefix + val.substring(end);
+                    
+                    editor.value = newVal;
+                    editor.selectionStart = editor.selectionEnd = start + prefix.length;
+                    handleInput();
+                }
             }
         });
 
@@ -639,14 +601,12 @@
         }
         slideLabel.addEventListener('input', handleInput);
         editor.addEventListener('input', handleInput);
-        slideLabel.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); slideLabel.blur(); }});
 
         function handleNav(direction) {
             const mode = MODES[currentModeIndex];
             if(isEditorActive) activatePreview();
             
             if (direction === 'forward') {
-                // Auto-extend logic
                 if (state.count === state.slides.length) {
                     let nextType = 'blank';
                     let nextPdfPage = null;
@@ -659,7 +619,6 @@
                     }
                     state.slides.push({ type: nextType, pdfPage: nextPdfPage, header: "", notes: "", drawings: [] });
                 }
-                
                 state.count++;
                 if (mode === 'PULSE') triggerFlash(">>>");
             } 
@@ -691,6 +650,17 @@
                 htmlContent = htmlContent.replace(regex, '<mark>$1</mark>');
             }
             preview.innerHTML = htmlContent;
+
+            // Render Math (KaTeX)
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(preview, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
 
             if (mode === 'NUM' || mode === 'PDF') { display.textContent = state.count; display.style.color = "white"; } 
             else if (mode === 'PULSE') { if (!timeoutHandle) { display.textContent = "---"; display.style.color = "#333"; } }
@@ -731,7 +701,6 @@
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
                         pdfDoc = pdfDoc_;
                         noPdfMsg.style.display = "none";
-                        // Default Init
                         if (state.slides.length <= 1 && !state.slides[0].notes && !state.slides[0].header) {
                             state.slides = [];
                             for(let i=1; i<=pdfDoc.numPages; i++) {
@@ -774,7 +743,7 @@
             });
         }
 
-        // --- JSON EXPORT (WITH MIGRATION) ---
+        // --- JSON EXPORT ---
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
@@ -787,9 +756,19 @@
             reader.onload = function(event) {
                 try {
                     let imported = JSON.parse(event.target.result);
-                    // Force migrate logic
-                    if (imported.memory) imported = performMigration(imported);
+                    if (imported.memory && (!imported.slides || imported.slides.length === 0)) {
+                        imported.slides = [];
+                        const indices = Object.keys(imported.memory).map(Number).sort((a,b)=>a-b);
+                        const maxIdx = indices.length > 0 ? indices[indices.length-1] : 0;
+                        for(let i=0; i<=maxIdx; i++) {
+                            const d = imported.memory[i] || {};
+                            imported.slides.push({ type: 'pdf', pdfPage: i+1, header: d.header||"", notes: d.notes||"", drawings: d.drawings||[] });
+                        }
+                        delete imported.memory;
+                        if(imported.count !== undefined) imported.count++;
+                    }
                     state = imported;
+                    if(state.count < 1) state.count = 1;
                     saveData(); updateDisplay();
                     if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
                     alert("Notes loaded!");
