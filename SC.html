@@ -244,9 +244,42 @@
         #clear-data-btn { color: #ff4444; border-color: #552222; }
         .empty-placeholder { color: #444; font-style: italic; }
 
+        /* --- CUSTOM MODAL --- */
+        #custom-modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        #custom-modal {
+            background: #1e1e1e; border: 1px solid #444; padding: 20px; border-radius: 8px; width: 300px;
+            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #modal-title { font-weight: bold; color: #fff; font-size: 14px; }
+        #modal-msg { color: #ccc; font-size: 12px; line-height: 1.4; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 8px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;
+        }
+        .btn-cancel { background: #333; color: #fff; border: 1px solid #555; }
+        .btn-danger { background: #c62828; color: #fff; }
+        .btn-cancel:hover { background: #444; }
+        .btn-danger:hover { background: #b71c1c; }
+
     </style>
 </head>
 <body>
+
+    <div id="custom-modal-overlay">
+        <div id="custom-modal">
+            <div id="modal-title">Unsaved Work Detected</div>
+            <div id="modal-msg">Importing a new file will overwrite your current session. This cannot be undone.</div>
+            <div class="modal-btns">
+                <button class="modal-btn btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn btn-danger" onclick="confirmImport()">Overwrite</button>
+            </div>
+        </div>
+    </div>
 
     <div id="menu-container">
         <button id="gear-btn" onclick="toggleMenu()">⚙</button>
@@ -331,27 +364,22 @@
             langPrefix: 'hljs language-'
         });
 
-        // --- STATE ---
-        const savedData = localStorage.getItem('slideTrackerData_Final_Safety'); 
-        let state = savedData ? JSON.parse(savedData) : { count: 1, slides: [] };
-
-        // MIGRATION
-        if (state.memory && (!state.slides || state.slides.length === 0)) {
-            state.slides = [];
-            const indices = Object.keys(state.memory).map(Number).sort((a,b)=>a-b);
-            const maxIdx = indices.length > 0 ? indices[indices.length-1] : 0;
-            for(let i=0; i<=maxIdx; i++) {
-                const d = state.memory[i] || {};
-                state.slides.push({ type: 'pdf', pdfPage: i+1, header: d.header||"", notes: d.notes||"", drawings: d.drawings||[] });
-            }
-            delete state.memory;
-        }
+        // --- STATE (MEMORY ONLY) ---
+        // Removed localStorage logic. Starts Fresh every time.
+        let state = { count: 1, slides: [] };
         
-        if (!state.slides || state.slides.length === 0) {
-            state.slides = [{ type: 'blank', header: '', notes: '', drawings: [] }];
-            state.count = 1;
-        }
-        if(state.count < 1) state.count = 1;
+        // Safety Init
+        state.slides = [{ type: 'blank', header: '', notes: '', drawings: [] }];
+        state.count = 1;
+
+        // --- BROWSER SAFETY NET ---
+        // Warns user if they try to close/refresh tab with unsaved work
+        window.addEventListener('beforeunload', function (e) {
+            if (checkIfDirty()) {
+                e.preventDefault();
+                e.returnValue = ''; // Required for modern browsers
+            }
+        });
 
         const MODES = ['NUM', 'PULSE', 'PDF'];
         let currentModeIndex = 0; 
@@ -388,8 +416,10 @@
         updateUIForMode();
         updateDisplay();
 
+        // --- SAVE DATA (NO-OP FOR PERSISTENCE, JUST UPDATES MEMORY) ---
         function saveData() {
-            localStorage.setItem('slideTrackerData_Final_Safety', JSON.stringify(state));
+            // No localStorage call. State is already updated in memory.
+            // Function kept for structural compatibility.
         }
 
         // --- SLIDE MANAGER ---
@@ -399,7 +429,6 @@
             let insertIndex = (offset === 1) ? state.count : state.count - 1;
             state.slides.splice(insertIndex, 0, newSlide);
             if (offset === 1) state.count++; 
-            saveData();
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
@@ -410,7 +439,6 @@
             const idx = state.count - 1;
             state.slides.splice(idx, 1);
             if (state.count > state.slides.length) state.count = state.slides.length;
-            saveData();
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
@@ -442,7 +470,6 @@
             if (currentMatchPos < 0) currentMatchPos = searchMatches.length - 1;
             searchCount.textContent = `${currentMatchPos + 1}/${searchMatches.length}`;
             state.count = searchMatches[currentMatchPos];
-            saveData();
             updateDisplay();
             activatePreview(); 
             if (MODES[currentModeIndex] === 'PDF') renderPage();
@@ -602,7 +629,7 @@
                     if (mode === 'PULSE') triggerFlash("<<<"); 
                 } 
             }
-            saveData(); updateDisplay();
+            updateDisplay();
             if (mode === 'PDF') renderPage();
         }
 
@@ -625,7 +652,6 @@
             }
             preview.innerHTML = htmlContent;
 
-            // Render Math
             if (typeof renderMathInElement !== 'undefined') {
                 renderMathInElement(preview, {
                     delimiters: [
@@ -675,13 +701,13 @@
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc_) {
                         pdfDoc = pdfDoc_;
                         noPdfMsg.style.display = "none";
+                        // Init new session on PDF load
                         if (state.slides.length <= 1 && !state.slides[0].notes && !state.slides[0].header) {
                             state.slides = [];
                             for(let i=1; i<=pdfDoc.numPages; i++) {
                                 state.slides.push({ type:'pdf', pdfPage:i, drawings:[] });
                             }
                             state.count = 1;
-                            saveData();
                             updateDisplay();
                         }
                         if (MODES[currentModeIndex] === 'PDF') renderPage();
@@ -717,31 +743,32 @@
             });
         }
 
-        // --- JSON EXPORT & SAFETY IMPORT ---
-        function exportNotes() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-            const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
-            const date = new Date().toISOString().slice(0,10); downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
-            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
-        }
+        // --- CUSTOM MODAL ---
+        const jsonInput = document.getElementById('json-upload');
+        const modalOverlay = document.getElementById('custom-modal-overlay');
 
         function checkIfDirty() {
-            // "Dirty" means there is data that might be lost
             if (!state.slides || state.slides.length === 0) return false;
-            // If more than 1 slide, or the first slide has text/drawing, it's dirty
             if (state.slides.length > 1) return true;
             const s = state.slides[0];
             return (s.header.trim() !== "" || s.notes.trim() !== "" || s.drawings.length > 0);
         }
 
-        document.getElementById('json-upload').addEventListener('click', function(e) {
-            // Intercept click to show warning
-            if (checkIfDirty()) {
-                if (!confirm("Current work will be replaced. Continue?")) {
-                    e.preventDefault(); // Stop file dialog
-                }
+        jsonInput.addEventListener('click', function(e) {
+            if (!window.skipDirtyCheck && checkIfDirty()) {
+                e.preventDefault();
+                modalOverlay.style.display = 'flex';
             }
         });
+
+        function closeModal() { modalOverlay.style.display = 'none'; }
+
+        function confirmImport() {
+            closeModal();
+            window.skipDirtyCheck = true;
+            jsonInput.click();
+            window.skipDirtyCheck = false;
+        }
 
         document.getElementById('json-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -749,6 +776,7 @@
             reader.onload = function(event) {
                 try {
                     let imported = JSON.parse(event.target.result);
+                    // Migrate
                     if (imported.memory && (!imported.slides || imported.slides.length === 0)) {
                         imported.slides = [];
                         const indices = Object.keys(imported.memory).map(Number).sort((a,b)=>a-b);
@@ -762,13 +790,11 @@
                     }
                     state = imported;
                     if(state.count < 1) state.count = 1;
-                    saveData(); updateDisplay();
+                    updateDisplay();
                     if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
-                    alert("Notes loaded!");
                 } catch(err) { alert("Error reading JSON"); }
             };
             reader.readAsText(file);
-            // Clear value so same file can be loaded again if needed
             e.target.value = '';
         });
 
@@ -778,7 +804,7 @@
         function updateTextSize(val) { editor.style.fontSize = val + "px"; preview.style.fontSize = val + "px"; slideLabel.style.fontSize = (val * 1.5) + "px"; }
         function updatePdfSize(val) { pdfContainer.style.height = val + "vh"; }
         function refreshPdfResolution() { if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(); }
-        function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; saveData(); location.reload(); } }
+        function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; location.reload(); } }
 
         // --- KEYS ---
         searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if(e.shiftKey) nextMatch(-1); else nextMatch(1); } });
