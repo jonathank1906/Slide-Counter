@@ -59,6 +59,8 @@
         #export-btn:hover { background: #1b331c; }
         #panic-btn { border-color: #ff4444; color: #ff4444; margin-top:10px; }
         #panic-btn:hover { background: #330000; }
+        #sync-btn { border-color: #00bcd4; color: #00bcd4; margin-top:10px; }
+        #sync-btn:hover { background: #003333; }
         .search-group { display: flex; gap: 5px; align-items: center; }
         #search-input { flex: 1; background: #000; border: 1px solid #444; color: white; padding: 6px; font-size: 12px; border-radius: 4px; outline: none; }
         #search-input:focus { border-color: #4CAF50; }
@@ -90,6 +92,7 @@
                 <div id="mode-status">Mode: Standard</div>
                 <button class="action-btn" onclick="cycleMode()">Switch Mode</button>
             </div>
+            
             <div class="control-group">
                 <label style="color:#aaa;">Slide Manager</label>
                 <div class="slide-ops">
@@ -99,7 +102,14 @@
                 <div class="slide-ops">
                     <button class="del-btn" onclick="deleteCurrentSlide()">Delete Current</button>
                 </div>
+                <label style="color:#aaa; margin-top:5px;">Shift Content (Fix Offset)</label>
+                <div class="slide-ops">
+                    <button onclick="shiftContent(-1)" title="Moves text from Slide 2 to Slide 1">▲ Shift Up</button>
+                    <button onclick="shiftContent(1)" title="Moves text from Slide 1 to Slide 2">▼ Shift Down</button>
+                </div>
+                <button id="sync-btn" class="action-btn" onclick="syncPdfSlides()">♻️ Sync Slides to PDF (1:1)</button>
             </div>
+
             <div class="control-group">
                 <label style="color:#4CAF50;">Search (Ctrl+F)</label>
                 <div class="search-group">
@@ -221,7 +231,7 @@
             return historyStacks[index];
         }
 
-        // FIXED SNAPSHOT LOGIC: Captures text at trigger time, not execution time
+        // FIXED SNAPSHOT LOGIC
         function pushSnapshot(index, text) {
             if (isRestoring) return;
             const h = getHistory(index);
@@ -252,7 +262,6 @@
             return next;
         }
 
-        // RAM-Only Recovery
         function recoverLostText() {
             if (emergencyBackup) {
                 if(confirm("Restore the last mass-deleted text from memory?")) {
@@ -279,13 +288,11 @@
             const idx = state.count - 1;
             const newText = editor.value;
             
-            // --- PANIC RECOVERY LOGIC (RAM) ---
+            // Panic Recovery
             const oldText = state.slides[idx] ? state.slides[idx].notes : "";
             if (oldText && oldText.length > 20 && newText.length < 5) {
                 emergencyBackup = oldText;
-                console.log("Large deletion detected. Saved to memory backup.");
             }
-            // ----------------------------------
 
             if(!state.slides[idx]) state.slides[idx] = { type:'blank', header:'', notes:'', drawings:[] };
             state.slides[idx].header = slideLabel.innerText;
@@ -491,6 +498,51 @@
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
 
+        // --- NEW SYNC & SHIFT LOGIC ---
+        function syncPdfSlides() {
+            if (!pdfDoc) { alert("Load a PDF first."); return; }
+            if (!confirm(`Force-Sync slides to PDF pages 1-${pdfDoc.numPages}? (Fixes black screens/missing slides)`)) return;
+            
+            for (let i = 0; i < pdfDoc.numPages; i++) {
+                if (!state.slides[i]) {
+                    state.slides[i] = { type: 'pdf', pdfPage: i + 1, header: "", notes: "", drawings: [] };
+                } else {
+                    state.slides[i].type = 'pdf';
+                    state.slides[i].pdfPage = i + 1;
+                }
+            }
+            if (state.count > state.slides.length) state.count = state.slides.length;
+            updateDisplay();
+            renderPage();
+        }
+
+        function shiftContent(direction) {
+            if (!confirm(`Shift content ${direction === -1 ? 'UP (Delete Slide 1)' : 'DOWN (Insert Blank at 1)'}?`)) return;
+            
+            if (direction === 1) { // DOWN
+                for (let i = state.slides.length - 1; i >= 0; i--) {
+                    if (i === 0) {
+                        state.slides[i].notes = ""; state.slides[i].drawings = []; state.slides[i].header = "";
+                    } else {
+                        state.slides[i].notes = state.slides[i-1].notes;
+                        state.slides[i].drawings = state.slides[i-1].drawings;
+                        state.slides[i].header = state.slides[i-1].header;
+                    }
+                }
+            } else { // UP
+                for (let i = 0; i < state.slides.length; i++) {
+                    if (i === state.slides.length - 1) {
+                        state.slides[i].notes = ""; state.slides[i].drawings = []; state.slides[i].header = "";
+                    } else {
+                        state.slides[i].notes = state.slides[i+1].notes;
+                        state.slides[i].drawings = state.slides[i+1].drawings;
+                        state.slides[i].header = state.slides[i+1].header;
+                    }
+                }
+            }
+            updateDisplay();
+        }
+
         function performSearch() {
             const query = searchInput.value.toLowerCase().trim();
             searchMatches = [];
@@ -606,7 +658,6 @@
         slideLabel.addEventListener('input', handleInput);
         editor.addEventListener('input', handleInput);
         
-        // CLICK AWAY (BLUR) LISTENER
         editor.addEventListener('blur', function() {
             activatePreview();
         });
@@ -650,7 +701,6 @@
                 }
                 handleInput();
             }
-            // Aggressive Snapshot for deletion/cutting
             if (e.key === 'Backspace' || e.key === 'Delete' || (e.ctrlKey && e.key === 'x') || (e.ctrlKey && e.key === 'v')) {
                  pushSnapshot(idx, editor.value);
             }
