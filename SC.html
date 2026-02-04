@@ -244,42 +244,9 @@
         #clear-data-btn { color: #ff4444; border-color: #552222; }
         .empty-placeholder { color: #444; font-style: italic; }
 
-        /* --- CUSTOM MODAL --- */
-        #custom-modal-overlay {
-            display: none;
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 1000;
-            justify-content: center; align-items: center;
-        }
-        #custom-modal {
-            background: #1e1e1e; border: 1px solid #444; padding: 20px; border-radius: 8px; width: 300px;
-            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        #modal-title { font-weight: bold; color: #fff; font-size: 14px; }
-        #modal-msg { color: #ccc; font-size: 12px; line-height: 1.4; }
-        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
-        .modal-btn {
-            padding: 8px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;
-        }
-        .btn-cancel { background: #333; color: #fff; border: 1px solid #555; }
-        .btn-danger { background: #c62828; color: #fff; }
-        .btn-cancel:hover { background: #444; }
-        .btn-danger:hover { background: #b71c1c; }
-
     </style>
 </head>
 <body>
-
-    <div id="custom-modal-overlay">
-        <div id="custom-modal">
-            <div id="modal-title">Unsaved Work Detected</div>
-            <div id="modal-msg">Importing a new file will overwrite your current session. This cannot be undone.</div>
-            <div class="modal-btns">
-                <button class="modal-btn btn-cancel" onclick="closeModal()">Cancel</button>
-                <button class="modal-btn btn-danger" onclick="confirmImport()">Overwrite</button>
-            </div>
-        </div>
-    </div>
 
     <div id="menu-container">
         <button id="gear-btn" onclick="toggleMenu()">⚙</button>
@@ -365,20 +332,22 @@
         });
 
         // --- STATE (MEMORY ONLY) ---
-        // Removed localStorage logic. Starts Fresh every time.
         let state = { count: 1, slides: [] };
         
         // Safety Init
         state.slides = [{ type: 'blank', header: '', notes: '', drawings: [] }];
         state.count = 1;
 
-        // --- BROWSER SAFETY NET ---
-        // Warns user if they try to close/refresh tab with unsaved work
+        // Browser Safety Net
+        function checkIfDirty() {
+            if (!state.slides || state.slides.length === 0) return false;
+            if (state.slides.length > 1) return true;
+            const s = state.slides[0];
+            return (s.header.trim() !== "" || s.notes.trim() !== "" || s.drawings.length > 0);
+        }
+
         window.addEventListener('beforeunload', function (e) {
-            if (checkIfDirty()) {
-                e.preventDefault();
-                e.returnValue = ''; // Required for modern browsers
-            }
+            if (checkIfDirty()) { e.preventDefault(); e.returnValue = ''; }
         });
 
         const MODES = ['NUM', 'PULSE', 'PDF'];
@@ -416,11 +385,7 @@
         updateUIForMode();
         updateDisplay();
 
-        // --- SAVE DATA (NO-OP FOR PERSISTENCE, JUST UPDATES MEMORY) ---
-        function saveData() {
-            // No localStorage call. State is already updated in memory.
-            // Function kept for structural compatibility.
-        }
+        function saveData() { /* Memory only */ }
 
         // --- SLIDE MANAGER ---
         function insertSlide(offset) {
@@ -652,6 +617,7 @@
             }
             preview.innerHTML = htmlContent;
 
+            // Render Math
             if (typeof renderMathInElement !== 'undefined') {
                 renderMathInElement(preview, {
                     delimiters: [
@@ -743,31 +709,12 @@
             });
         }
 
-        // --- CUSTOM MODAL ---
-        const jsonInput = document.getElementById('json-upload');
-        const modalOverlay = document.getElementById('custom-modal-overlay');
-
-        function checkIfDirty() {
-            if (!state.slides || state.slides.length === 0) return false;
-            if (state.slides.length > 1) return true;
-            const s = state.slides[0];
-            return (s.header.trim() !== "" || s.notes.trim() !== "" || s.drawings.length > 0);
-        }
-
-        jsonInput.addEventListener('click', function(e) {
-            if (!window.skipDirtyCheck && checkIfDirty()) {
-                e.preventDefault();
-                modalOverlay.style.display = 'flex';
-            }
-        });
-
-        function closeModal() { modalOverlay.style.display = 'none'; }
-
-        function confirmImport() {
-            closeModal();
-            window.skipDirtyCheck = true;
-            jsonInput.click();
-            window.skipDirtyCheck = false;
+        // --- JSON EXPORT & SAFETY IMPORT ---
+        function exportNotes() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
+            const date = new Date().toISOString().slice(0,10); downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
+            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
         }
 
         document.getElementById('json-upload').addEventListener('change', function(e) {
