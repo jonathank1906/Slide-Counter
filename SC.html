@@ -291,8 +291,8 @@
             </div>
             
             <hr style="width:100%; border:0; border-top:1px solid #333;">
-            <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf"></div>
-            <div class="control-group"><label style="color:orange;">2. Import Notes (JSON)</label><input type="file" id="json-upload" accept=".json"></div>
+            <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf" autocomplete="off"></div>
+            <div class="control-group"><label style="color:orange;">2. Import Notes (JSON)</label><input type="file" id="json-upload" accept=".json" autocomplete="off"></div>
             <div class="control-group"><button id="export-btn" class="action-btn" onclick="exportNotes()">3. Save/Export Notes</button></div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
             <div class="control-group"><label>Number Size</label><input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)"></div>
@@ -382,6 +382,10 @@
         let isEditorActive = false;
 
         // Init
+        // FORCE CLEAR INPUTS on load to fix Duplicate Tab issue
+        document.getElementById('pdf-upload').value = '';
+        document.getElementById('json-upload').value = '';
+
         updateUIForMode();
         updateDisplay();
 
@@ -617,7 +621,6 @@
             }
             preview.innerHTML = htmlContent;
 
-            // Render Math
             if (typeof renderMathInElement !== 'undefined') {
                 renderMathInElement(preview, {
                     delimiters: [
@@ -709,7 +712,7 @@
             });
         }
 
-        // --- JSON EXPORT & SAFETY IMPORT ---
+        // --- JSON EXPORT & IMPORT ---
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
@@ -723,7 +726,6 @@
             reader.onload = function(event) {
                 try {
                     let imported = JSON.parse(event.target.result);
-                    // Migrate
                     if (imported.memory && (!imported.slides || imported.slides.length === 0)) {
                         imported.slides = [];
                         const indices = Object.keys(imported.memory).map(Number).sort((a,b)=>a-b);
