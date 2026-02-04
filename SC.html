@@ -57,6 +57,8 @@
         .tool-btn.active { background: #444; color: #fff; border-color: #666; font-weight: bold; }
         #export-btn { border-color: #4CAF50; color: #4CAF50; }
         #export-btn:hover { background: #1b331c; }
+        #panic-btn { border-color: #ff4444; color: #ff4444; margin-top:10px; }
+        #panic-btn:hover { background: #330000; }
         .search-group { display: flex; gap: 5px; align-items: center; }
         #search-input { flex: 1; background: #000; border: 1px solid #444; color: white; padding: 6px; font-size: 12px; border-radius: 4px; outline: none; }
         #search-input:focus { border-color: #4CAF50; }
@@ -122,6 +124,7 @@
             <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf" autocomplete="off"></div>
             <div class="control-group"><label style="color:orange;">2. Import Notes (JSON)</label><input type="file" id="json-upload" accept=".json" autocomplete="off"></div>
             <div class="control-group"><button id="export-btn" class="action-btn" onclick="exportNotes()">3. Save/Export Notes</button></div>
+            <div class="control-group"><button id="panic-btn" class="action-btn" onclick="recoverLostText()">🆘 Restore Lost Text</button></div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
             <div class="control-group"><label>Number Size</label><input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)"></div>
             <div class="control-group"><label>Text Size</label><input type="range" min="12" max="60" value="18" oninput="updateTextSize(this.value)"></div>
@@ -195,6 +198,9 @@
         let historyStacks = {}; 
         let saveTimeout = null;
         let isRestoring = false;
+        
+        // PANIC RECOVERY (RAM ONLY)
+        let emergencyBackup = ""; 
 
         // Drawing Vars
         let isDrawing = false; 
@@ -215,6 +221,7 @@
             return historyStacks[index];
         }
 
+        // FIXED SNAPSHOT LOGIC: Captures text at trigger time, not execution time
         function pushSnapshot(index, text) {
             if (isRestoring) return;
             const h = getHistory(index);
@@ -245,6 +252,18 @@
             return next;
         }
 
+        // RAM-Only Recovery
+        function recoverLostText() {
+            if (emergencyBackup) {
+                if(confirm("Restore the last mass-deleted text from memory?")) {
+                    editor.value = emergencyBackup + "\n" + editor.value;
+                    handleInput();
+                }
+            } else {
+                alert("No lost text found in memory.");
+            }
+        }
+
         function checkIfDirty() {
             if (state.slides.length > 1) return true; 
             const s = state.slides[0];
@@ -258,12 +277,23 @@
 
         function handleInput() {
             const idx = state.count - 1;
+            const newText = editor.value;
+            
+            // --- PANIC RECOVERY LOGIC (RAM) ---
+            const oldText = state.slides[idx] ? state.slides[idx].notes : "";
+            if (oldText && oldText.length > 20 && newText.length < 5) {
+                emergencyBackup = oldText;
+                console.log("Large deletion detected. Saved to memory backup.");
+            }
+            // ----------------------------------
+
             if(!state.slides[idx]) state.slides[idx] = { type:'blank', header:'', notes:'', drawings:[] };
             state.slides[idx].header = slideLabel.innerText;
-            state.slides[idx].notes = editor.value; 
+            state.slides[idx].notes = newText; 
+            
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
-                pushSnapshot(idx, editor.value);
+                pushSnapshot(idx, newText); 
             }, 500);
             saveData();
         }
@@ -619,6 +649,10 @@
                     editor.selectionStart = start + 4; editor.selectionEnd = end + 4;
                 }
                 handleInput();
+            }
+            // Aggressive Snapshot for deletion/cutting
+            if (e.key === 'Backspace' || e.key === 'Delete' || (e.ctrlKey && e.key === 'x') || (e.ctrlKey && e.key === 'v')) {
+                 pushSnapshot(idx, editor.value);
             }
             if (e.key === 'Enter') {
                 pushSnapshot(idx, editor.value);
