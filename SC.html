@@ -45,8 +45,6 @@
         #slideNotesPreview th { background-color: #222; color: #fff; font-weight: bold; }
         #slideNotesPreview tr:nth-child(even) { background-color: #111; }
         #slideNotesPreview tr:nth-child(odd) { background-color: #161616; }
-        #notes-mode-toggle { position: absolute; top: 10px; right: 20px; z-index: 100; background: transparent; border: 1px solid #333; color: #555; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; opacity: 0.3; transition: opacity 0.2s; }
-        #notes-mode-toggle:hover { opacity: 1; color: #fff; border-color: #666; }
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
         #gear-btn { background: transparent; color: #555; border: none; font-size: 24px; cursor: pointer; padding: 5px; transition: color 0.2s; }
         #gear-btn:hover { color: #fff; }
@@ -143,7 +141,6 @@
     </div>
 
     <div id="notes-container">
-        <button id="notes-mode-toggle" title="Toggle Edit/Preview" onclick="toggleNotesModeManual()">👁️</button>
         <div id="notes-wrapper">
             <textarea id="slideNotesEditor" placeholder="Type Markdown here... (Math: $x^2$, Code: ```js ...)"></textarea>
             <div id="slideNotesPreview" onclick="activateEditor()"></div>
@@ -162,7 +159,6 @@
         const slideLabel = document.getElementById('slideLabel');
         const editor = document.getElementById('slideNotesEditor');
         const preview = document.getElementById('slideNotesPreview');
-        const toggleBtn = document.getElementById('notes-mode-toggle');
         const pdfContainer = document.getElementById('pdf-render-container');
         const noPdfMsg = document.getElementById('no-pdf-msg');
         const modeStatus = document.getElementById('mode-status');
@@ -206,15 +202,14 @@
         let currentTool = 'pen'; 
         let currentStrokes = [];
 
-        // PDF Render Queue Vars (Race Condition Fix)
+        // PDF Render Queue Vars
         let isPageRendering = false;
         let pageNumPending = null;
 
         // ==========================================
-        // 2. HELPER FUNCTIONS (DEFINED FIRST)
+        // 2. HELPER FUNCTIONS
         // ==========================================
 
-        // --- Undo/Redo ---
         function getHistory(index) {
             if (!historyStacks[index]) historyStacks[index] = { undo: [], redo: [] };
             return historyStacks[index];
@@ -233,7 +228,6 @@
             const h = getHistory(index);
             if (h.undo.length === 0) return null;
             const currentText = editor.value;
-            // Pop if duplicate
             if (h.undo.length > 0 && h.undo[h.undo.length - 1] === currentText) {
                 h.undo.pop();
             }
@@ -251,9 +245,8 @@
             return next;
         }
 
-        // --- Browser Close Safety ---
         function checkIfDirty() {
-            if (state.slides.length > 1) return true; // Has PDF
+            if (state.slides.length > 1) return true; 
             const s = state.slides[0];
             if (s.header && s.header.trim() !== "") return true;
             if (s.notes && s.notes.trim() !== "") return true;
@@ -261,16 +254,13 @@
             return false;
         }
 
-        // --- Core App Logic ---
         function saveData() { /* Memory Only */ }
 
         function handleInput() {
             const idx = state.count - 1;
             if(!state.slides[idx]) state.slides[idx] = { type:'blank', header:'', notes:'', drawings:[] };
-            
             state.slides[idx].header = slideLabel.innerText;
             state.slides[idx].notes = editor.value; 
-            
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 pushSnapshot(idx, editor.value);
@@ -281,7 +271,6 @@
         function updateDisplay() {
             const idx = state.count - 1;
             const slide = state.slides[idx] || { type:'blank', header:'', notes:'' };
-
             slideLabel.innerText = slide.header || "";
             editor.value = slide.notes || "";
             
@@ -322,37 +311,31 @@
             updateDisplay(); 
         }
 
-        // --- QUEUE BASED RENDERING (FIXES CANVAS ERROR) ---
         function renderPage() {
-            // 1. Validate Context
             if (pdfContainer.clientHeight === 0) return; 
+            if (renderTask) renderTask.cancel();
             const slide = state.slides[state.count - 1];
             
-            // 2. Handle Non-PDF Slides immediately
             if (!slide || slide.type === 'blank') {
                 if(isPageRendering) {
                     if(renderTask) { renderTask.cancel(); renderTask = null; }
-                    isPageRendering = false;
-                    pageNumPending = null;
+                    isPageRendering = false; pageNumPending = null;
                 }
                 pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
                 if(pdfCanvas.width < 100) { pdfCanvas.width=800; pdfCanvas.height=450; } 
-                resizeDrawLayer();
-                return;
+                resizeDrawLayer(); return;
             }
             if (!pdfDoc) return;
 
             const pageNum = slide.pdfPage || state.count;
             if(pageNum > pdfDoc.numPages) { pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height); return; }
 
-            // 3. QUEUE LOGIC
             if (isPageRendering) {
                 pageNumPending = pageNum;
                 if (renderTask) { renderTask.cancel(); }
                 return; 
             }
 
-            // 4. START RENDER
             isPageRendering = true;
             pdfDoc.getPage(pageNum).then(function(page) {
                 const containerHeight = pdfContainer.clientHeight;
@@ -367,17 +350,11 @@
 
                 renderTask.promise.then(function() {
                     isPageRendering = false;
-                    if (pageNumPending !== null) {
-                        pageNumPending = null;
-                        renderPage(); // Process pending
-                    }
+                    if (pageNumPending !== null) { pageNumPending = null; renderPage(); }
                 }).catch(function(err) {
                     isPageRendering = false;
                     if (err.name === 'RenderingCancelledException') {
-                        if (pageNumPending !== null) {
-                            pageNumPending = null;
-                            renderPage(); // Retry pending
-                        }
+                        if (pageNumPending !== null) { pageNumPending = null; renderPage(); }
                     } else { console.log(err); }
                 });
             });
@@ -416,7 +393,6 @@
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
 
-        // --- Drawing Tools ---
         function setTool(tool) {
             currentTool = tool;
             if(tool === 'pen') { btnPen.classList.add('active'); btnEraser.classList.remove('active'); drawCanvas.style.cursor = 'crosshair'; } 
@@ -467,7 +443,6 @@
         function resizeDrawLayer() { drawCanvas.width = pdfCanvas.width; drawCanvas.height = pdfCanvas.height; renderDrawings(); }
         function endAction() { if(isDrawing) { isDrawing = false; saveDrawingsToState(); } if(isErasing) isErasing = false; }
 
-        // --- Slide Ops ---
         function insertSlide(offset) {
             handleInput();
             const newSlide = { type: 'blank', header: '', notes: '', drawings: [] };
@@ -486,7 +461,6 @@
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
 
-        // --- Search ---
         function performSearch() {
             const query = searchInput.value.toLowerCase().trim();
             searchMatches = [];
@@ -518,7 +492,6 @@
         }
         function clearSearch() { searchInput.value = ""; performSearch(); searchInput.blur(); }
 
-        // --- Export ---
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
@@ -527,32 +500,25 @@
         }
         function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; location.reload(); } }
 
-        // --- UI Utils ---
         function toggleMenu() { controlsPanel.classList.toggle('active'); if(controlsPanel.classList.contains('active')) setTimeout(()=>searchInput.focus(),100); }
         function updateNumberSize(val) { display.style.fontSize = val + "px"; }
         function updateTextSize(val) { editor.style.fontSize = val + "px"; preview.style.fontSize = val + "px"; slideLabel.style.fontSize = (val * 1.5) + "px"; }
         function updatePdfSize(val) { pdfContainer.style.height = val + "vh"; }
         function refreshPdfResolution() { if (MODES[currentModeIndex] === 'PDF' && pdfDoc) renderPage(); }
-        function activateEditor() { isEditorActive = true; editor.style.display = 'block'; preview.style.display = 'none'; toggleBtn.textContent = '✏️'; editor.focus(); }
-        function activatePreview() { isEditorActive = false; editor.style.display = 'none'; preview.style.display = 'block'; toggleBtn.textContent = '👁️'; updateDisplay(); }
-        function toggleNotesModeManual() { if(isEditorActive) activatePreview(); else activateEditor(); }
+        function activateEditor() { isEditorActive = true; editor.style.display = 'block'; preview.style.display = 'none'; editor.focus(); }
+        function activatePreview() { isEditorActive = false; editor.style.display = 'none'; preview.style.display = 'block'; updateDisplay(); }
 
         // ==========================================
-        // 3. EVENT LISTENERS (RUN LAST)
+        // 3. EVENT LISTENERS
         // ==========================================
 
         document.getElementById('pdf-upload').value = '';
         document.getElementById('json-upload').value = '';
 
-        // Added back explicitly as requested
         window.addEventListener('beforeunload', function (e) {
-            if (checkIfDirty()) { 
-                e.preventDefault(); 
-                e.returnValue = ''; 
-            }
+            if (checkIfDirty()) { e.preventDefault(); e.returnValue = ''; }
         });
 
-        // PDF Import
         document.getElementById('pdf-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file && file.type === "application/pdf") {
@@ -580,7 +546,6 @@
             }
         });
 
-        // JSON Import
         document.getElementById('json-upload').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -608,26 +573,35 @@
             e.target.value = '';
         });
 
-        // Editor Logic
         slideLabel.addEventListener('input', handleInput);
         editor.addEventListener('input', handleInput);
+        
+        // CLICK AWAY (BLUR) LISTENER
+        editor.addEventListener('blur', function() {
+            activatePreview();
+        });
+
         editor.addEventListener('keydown', (e) => {
             const idx = state.count - 1;
-            // Undo
+            
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                activatePreview();
+                return;
+            }
+
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault(); isRestoring = true;
                 const restored = undo(idx);
                 if (restored !== null && restored !== undefined) { editor.value = restored; state.slides[idx].notes = restored; }
                 isRestoring = false; return;
             }
-            // Redo
             if (((e.ctrlKey || e.metaKey) && e.key === 'y') || ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey)) {
                 e.preventDefault(); isRestoring = true;
                 const restored = redo(idx);
                 if (restored !== null && restored !== undefined) { editor.value = restored; state.slides[idx].notes = restored; }
                 isRestoring = false; return;
             }
-            // Tab
             if (e.key === 'Tab') {
                 e.preventDefault(); pushSnapshot(idx, editor.value);
                 const start = editor.selectionStart; const end = editor.selectionEnd; const val = editor.value;
@@ -646,7 +620,6 @@
                 }
                 handleInput();
             }
-            // Enter
             if (e.key === 'Enter') {
                 pushSnapshot(idx, editor.value);
                 const start = editor.selectionStart; const end = editor.selectionEnd; const val = editor.value;
@@ -663,7 +636,6 @@
             }
         });
 
-        // Drawing Events
         drawCanvas.addEventListener('mousedown', (e) => {
             const norm = getNormalizedPos(e);
             if (currentTool === 'eraser') { isErasing = true; eraseStrokeAtInternal(toPixel(norm.x, norm.y)); } 
@@ -681,7 +653,6 @@
         });
         drawCanvas.addEventListener('mouseup', endAction); drawCanvas.addEventListener('mouseout', endAction);
 
-        // Global Keys
         searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if(e.shiftKey) nextMatch(-1); else nextMatch(1); } });
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') { activatePreview(); if(document.activeElement === searchInput) { clearSearch(); toggleMenu(); } document.activeElement.blur(); return; }
