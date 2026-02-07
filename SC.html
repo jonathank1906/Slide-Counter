@@ -15,19 +15,83 @@
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; height: 100vh; font-family: Arial, sans-serif; background-color: black; color: white; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* --- HEADER --- */
         #sticky-header-group { flex: 0 0 auto; background: #000; border-bottom: 1px solid #222; padding: 10px 20px; z-index: 50; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100px; }
         #display { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 80px; font-weight: bold; user-select: none; line-height: 1; white-space: nowrap; text-align: right; z-index: 20; text-shadow: 0 0 5px black; }
         #slideLabel { background: transparent; border-bottom: 1px solid #333; color: #ddd; font-size: 30px; outline: none; padding-bottom: 2px; margin-bottom: 10px; min-width: 200px; max-width: 60%; text-align: center; transition: border-color 0.2s; cursor: text; display: block; }
         #slideLabel:focus { border-bottom: 1px solid #fff; }
+        
+        /* --- SIDEBAR NAVIGATOR --- */
+        #sidebar-toggle { position: absolute; top: 10px; left: 50px; z-index: 101; background: transparent; border: none; font-size: 24px; cursor: pointer; color: #555; }
+        #sidebar-toggle:hover { color: #fff; }
+        
+        #sidebar {
+            position: absolute; top: 0; left: 0; width: 250px; height: 100%;
+            background: #111; border-right: 1px solid #333; z-index: 90;
+            transform: translateX(-100%); transition: transform 0.2s ease;
+            display: flex; flex-direction: column; padding-top: 60px;
+            /* RESIZE LOGIC */
+            min-width: 150px; max-width: 80vw;
+        }
+        #sidebar.active { transform: translateX(0); }
+        
+        /* THE DRAG HANDLE */
+        #resizer {
+            width: 10px;
+            height: 100%;
+            position: absolute;
+            right: 0;
+            top: 0;
+            cursor: col-resize;
+            z-index: 100;
+            background: transparent;
+        }
+        #resizer:hover { background: rgba(255, 255, 255, 0.1); }
+
+        #toc-list { overflow-y: auto; flex: 1; padding: 10px; }
+        #toc-list::-webkit-scrollbar { width: 5px; }
+        #toc-list::-webkit-scrollbar-thumb { background: #333; }
+        
+        .toc-item {
+            padding: 8px; border-bottom: 1px solid #222; cursor: pointer;
+            font-size: 13px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toc-item:hover { background: #222; color: #fff; }
+        .toc-item.current { background: #0d2b42; color: #2196F3; border-left: 3px solid #2196F3; }
+        
+        /* STANDARD NUMBER */
+        .toc-num { font-weight: bold; min-width: 25px; text-align: right; }
+
+        /* GRAYSCALE FRIENDLY: CIRCLE STYLE FOR NOTES */
+        .toc-item.is-note .toc-num {
+            background: #e0e0e0;
+            color: #000;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            min-width: 22px; /* Prevent squishing */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 11px;
+            margin-right: 3px;
+        }
+        /* Reset note text color to standard (since we rely on the circle now) */
+        .toc-item.is-note { color: #aaa; } 
+        .toc-item.is-note:hover { color: #fff; }
+
+        /* --- PDF & DRAWING --- */
         #pdf-render-container { display: none; justify-content: center; align-items: center; width: 100%; height: 30vh; position: relative; transition: height 0.1s ease; }
         #the-canvas { max-height: 100%; max-width: 80%; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); position: absolute; z-index: 1; }
-        
-        /* CLASSIC INVERT (Sumatra Style) */
         #the-canvas.inverted { filter: invert(1); }
-
         #draw-canvas { max-height: 100%; max-width: 80%; position: absolute; z-index: 2; touch-action: none; pointer-events: none; }
         #draw-canvas.active { pointer-events: auto; border: 1px dashed rgba(255, 255, 255, 0.2); }
         #no-pdf-msg { color: #444; font-style: italic; position: absolute; font-size: 14px; z-index: 0; }
+        
+        /* --- NOTES --- */
         #notes-container { flex: 1; position: relative; overflow: hidden; display: flex; justify-content: center; border-top: 1px solid #111; background: #050505; }
         #notes-wrapper { width: 100%; max-width: 800px; height: 100%; padding: 20px; overflow-y: auto; position: relative; }
         #notes-wrapper::-webkit-scrollbar { width: 10px; }
@@ -49,6 +113,8 @@
         #slideNotesPreview th { background-color: #222; color: #fff; font-weight: bold; }
         #slideNotesPreview tr:nth-child(even) { background-color: #111; }
         #slideNotesPreview tr:nth-child(odd) { background-color: #161616; }
+        
+        /* --- SETTINGS MENU --- */
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
         #gear-btn { background: transparent; color: #555; border: none; font-size: 24px; cursor: pointer; padding: 5px; transition: color 0.2s; }
         #gear-btn:hover { color: #fff; }
@@ -89,13 +155,18 @@
         #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
         #clear-data-btn { color: #ff4444; border-color: #552222; }
         .empty-placeholder { color: #444; font-style: italic; }
-        /* Auto Save Checkbox Style */
         .checkbox-container { display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
         .checkbox-container input { margin-right: 8px; cursor: pointer; }
         .checkbox-text { font-size: 12px; color: #ccc; }
     </style>
 </head>
 <body>
+
+    <div id="sidebar">
+        <div id="resizer"></div> <div style="padding:10px; font-weight:bold; color:#fff; border-bottom:1px solid #333;">Slides / Notes</div>
+        <div id="toc-list"></div>
+    </div>
+    <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
 
     <div id="menu-container">
         <button id="gear-btn" onclick="toggleMenu()">⚙</button>
@@ -208,8 +279,10 @@
         const btnEraser = document.getElementById('btn-eraser');
         const searchInput = document.getElementById('search-input');
         const searchCount = document.getElementById('search-count');
+        const sidebar = document.getElementById('sidebar');
+        const tocList = document.getElementById('toc-list');
+        const resizer = document.getElementById('resizer'); // New Resizer
 
-        // OFFLINE BUFFER FOR SEAMLESS RENDERING
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
 
@@ -235,27 +308,15 @@
         let timeoutHandle = null;
         let isEditorActive = false;
 
-        // Undo/Redo Vars
         let historyStacks = {}; 
         let saveTimeout = null;
         let isRestoring = false;
-        
-        // PANIC RECOVERY (RAM ONLY)
         let emergencyBackup = ""; 
-
-        // FILE HANDLE & AUTO-SAVE
         let fileHandle = null;
         let autoSaveInterval = null;
 
-        // Drawing Vars
-        let isDrawing = false; 
-        let isErasing = false; 
-        let currentTool = 'pen'; 
-        let currentStrokes = [];
-
-        // PDF Render Queue Vars
-        let isPageRendering = false;
-        let pageNumPending = null;
+        let isDrawing = false; let isErasing = false; let currentTool = 'pen'; let currentStrokes = [];
+        let isPageRendering = false; let pageNumPending = null;
 
         // ==========================================
         // 2. HELPER FUNCTIONS
@@ -266,7 +327,6 @@
             return historyStacks[index];
         }
 
-        // FIXED SNAPSHOT LOGIC
         function pushSnapshot(index, text) {
             if (isRestoring) return;
             const h = getHistory(index);
@@ -303,9 +363,7 @@
                     editor.value = emergencyBackup + "\n" + editor.value;
                     handleInput();
                 }
-            } else {
-                alert("No lost text found in memory.");
-            }
+            } else { alert("No lost text found in memory."); }
         }
 
         function checkIfDirty() {
@@ -322,13 +380,10 @@
         function handleInput() {
             const idx = state.count - 1;
             const newText = editor.value;
-            
-            // Panic Recovery
             const oldText = state.slides[idx] ? state.slides[idx].notes : "";
             if (oldText && oldText.length > 20 && newText.length < 5) {
                 emergencyBackup = oldText;
             }
-
             if(!state.slides[idx]) state.slides[idx] = { type:'blank', header:'', notes:'', drawings:[] };
             state.slides[idx].header = slideLabel.innerText;
             state.slides[idx].notes = newText; 
@@ -338,6 +393,7 @@
                 pushSnapshot(idx, newText); 
             }, 500);
             saveData();
+            updateSidebar(); 
         }
 
         function updateDisplay() {
@@ -366,9 +422,71 @@
             }
 
             const mode = MODES[currentModeIndex];
+            
+            if (mode === 'PDF') {
+                if (slide.type === 'blank') {
+                    pdfContainer.style.display = 'none';
+                } else {
+                    pdfContainer.style.display = 'flex';
+                    if (pdfCanvas.width === 0 && pdfDoc) renderPage();
+                }
+            }
+
             if (mode === 'NUM' || mode === 'PDF') { display.textContent = state.count; display.style.color = "white"; } 
             else if (mode === 'PULSE') { if (!timeoutHandle) { display.textContent = "---"; display.style.color = "#333"; } }
+            
+            updateSidebar();
         }
+
+        // --- SIDEBAR LOGIC ---
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+        }
+
+        function updateSidebar() {
+            let html = "";
+            state.slides.forEach((slide, index) => {
+                const num = index + 1;
+                const isCurrent = (num === state.count);
+                const isBlank = (slide.type === 'blank');
+                const title = slide.header ? slide.header : (isBlank ? "<i>(Note Slide)</i>" : `Slide ${num}`);
+                
+                html += `<div class="toc-item ${isCurrent ? 'current' : ''} ${isBlank ? 'is-note' : ''}" onclick="jumpToSlide(${num})">
+                    <span class="toc-num">${num}</span>
+                    <span class="toc-text">${title}</span>
+                </div>`;
+            });
+            tocList.innerHTML = html;
+        }
+
+        function jumpToSlide(num) {
+            if (isEditorActive) activatePreview();
+            state.count = num;
+            updateDisplay();
+            if (MODES[currentModeIndex] === 'PDF') renderPage();
+        }
+
+        // --- SIDEBAR RESIZE LOGIC ---
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            // Limits
+            if (newWidth < 150) newWidth = 150;
+            if (newWidth > window.innerWidth * 0.8) newWidth = window.innerWidth * 0.8;
+            sidebar.style.width = newWidth + 'px';
+        });
+        document.addEventListener('mouseup', () => {
+            if(isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            }
+        });
 
         function updateUIForMode() {
             const mode = MODES[currentModeIndex];
@@ -383,20 +501,29 @@
             updateDisplay(); 
         }
 
-        // --- SEAMLESS RENDER PAGE LOGIC ---
         function renderPage() {
             if (pdfContainer.clientHeight === 0) return; 
             if (renderTask) renderTask.cancel();
             const slide = state.slides[state.count - 1];
             
             if (!slide || slide.type === 'blank') {
-                // If blank/non-PDF, clear immediately
                 if(isPageRendering) {
                     if(renderTask) { renderTask.cancel(); renderTask = null; }
                     isPageRendering = false; pageNumPending = null;
                 }
                 pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+                // Visual placeholder if needed, though container usually hidden
                 if(pdfCanvas.width < 100) { pdfCanvas.width=800; pdfCanvas.height=450; } 
+                
+                const isDark = pdfCanvas.classList.contains('inverted');
+                pdfCtx.fillStyle = isDark ? '#333' : '#eee';
+                pdfCtx.fillRect(0,0,pdfCanvas.width, pdfCanvas.height);
+                
+                pdfCtx.font = "30px Arial";
+                pdfCtx.fillStyle = isDark ? '#fff' : '#555';
+                pdfCtx.textAlign = "center";
+                pdfCtx.fillText("📝 Additional Notes (Not in PDF)", pdfCanvas.width/2, pdfCanvas.height/2);
+                
                 resizeDrawLayer(); return;
             }
             if (!pdfDoc) return;
@@ -404,7 +531,6 @@
             const pageNum = slide.pdfPage || state.count;
             if(pageNum > pdfDoc.numPages) { pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height); return; }
 
-            // If busy, queue it
             if (isPageRendering) {
                 pageNumPending = pageNum;
                 if (renderTask) { renderTask.cancel(); }
@@ -418,11 +544,9 @@
                 const scale = containerHeight / unscaledViewport.height;
                 const viewport = page.getViewport({scale: scale});
                 
-                // Set offscreen canvas to match required size
                 offscreenCanvas.height = viewport.height;
                 offscreenCanvas.width = viewport.width;
 
-                // Render to OFFSCREEN context
                 const renderContext = { canvasContext: offscreenCtx, viewport: viewport };
                 renderTask = page.render(renderContext);
 
@@ -432,7 +556,6 @@
                         pageNumPending = null; 
                         renderPage(); 
                     } else {
-                        // SUCCESS: Swap buffer to screen
                         pdfCanvas.height = offscreenCanvas.height;
                         pdfCanvas.width = offscreenCanvas.width;
                         pdfCtx.drawImage(offscreenCanvas, 0, 0);
@@ -624,7 +747,6 @@
         }
         function clearSearch() { searchInput.value = ""; performSearch(); searchInput.blur(); }
 
-        // --- NEW SAVE LOGIC (FILE SYSTEM ACCESS) ---
         async function openNotesEditable() {
             if (!window.showOpenFilePicker) { alert("Your browser doesn't support Smart Open. Use standard Import below."); return; }
             try {
@@ -636,7 +758,6 @@
                 loadImportedData(text);
                 document.getElementById('export-btn').textContent = "💾 Save (Instant)";
                 
-                // AUTO-START TIMER IF BOX IS CHECKED (It is checked by default now)
                 if (document.getElementById('autosave-toggle').checked) {
                     startAutoSave();
                 }
@@ -652,13 +773,11 @@
                     await writable.close();
                     
                     const btn = document.getElementById('export-btn');
-                    // Only flash visual feedback if NOT triggered by auto-save
                     if (!arguments[0]) { 
                         const orig = btn.textContent;
                         btn.textContent = "✅ Saved!";
                         setTimeout(() => btn.textContent = orig, 2000);
                     } else {
-                        // Subtle feedback for auto-save
                         const orig = btn.textContent;
                         btn.textContent = "✅ Auto-Saved";
                         setTimeout(() => btn.textContent = orig, 1000);
@@ -666,7 +785,6 @@
                     return;
                 } catch(e) { console.error("Save failed", e); fileHandle = null; }
             }
-            // If no handle and this wasn't an auto-save call, prompt user
             if (!arguments[0]) saveNotesAs();
         }
 
@@ -684,11 +802,9 @@
                     await writable.close();
                     document.getElementById('export-btn').textContent = "💾 Save (Instant)";
                     
-                    // AUTO-START TIMER IF BOX IS CHECKED
                     if (document.getElementById('autosave-toggle').checked) {
                         startAutoSave();
                     }
-                    
                     return;
                 } catch(e) { if(e.name !== 'AbortError') alert("Save failed. Using download fallback."); }
             }
@@ -705,21 +821,15 @@
 
         function toggleAutoSave() {
             const isChecked = document.getElementById('autosave-toggle').checked;
-            
             if (autoSaveInterval) { clearInterval(autoSaveInterval); autoSaveInterval = null; }
-            
             if (isChecked) {
                 if (fileHandle) {
                     startAutoSave();
                     alert("Auto-save started.");
-                } else {
-                    // It is checked by default, so we don't alert if no file yet.
-                    // It will start automatically when file is loaded.
                 }
             }
         }
 
-        // Old fallback method
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
@@ -876,8 +986,9 @@
         let lastScrollTime = 0;
         document.addEventListener('wheel', (e) => {
             const notesDiv = document.getElementById('notes-wrapper');
-            // If scrolling inside notes, ignore slide change
-            if (notesDiv.contains(e.target)) return;
+            const sidebarDiv = document.getElementById('sidebar'); // FIXED SCROLL BUG
+            
+            if (notesDiv.contains(e.target) || sidebarDiv.contains(e.target)) return;
 
             const now = Date.now();
             // Throttling 30ms for faster scroll
@@ -918,14 +1029,20 @@
                 if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); handleNav('backward'); return; }
             }
             if (document.activeElement === editor || document.activeElement === searchInput) return;
+            
+            // FIXED HEADER TYPING BUG
+            if (document.activeElement === slideLabel) {
+                 if (['ArrowUp','ArrowDown'].includes(e.key)) { e.preventDefault(); handleNav(e.key === 'ArrowUp' ? 'forward' : 'backward'); } 
+                 return; 
+            }
+
             // NEW: 'i' Key for Dark Mode
             if (e.key === 'i' && !isEditorActive) {
                 pdfCanvas.classList.toggle('inverted');
+                if (state.slides[state.count-1].type === 'blank') renderPage();
                 return;
             }
-            if (document.activeElement === slideLabel) {
-                 if (['ArrowUp','ArrowDown'].includes(e.key)) { e.preventDefault(); handleNav(e.key === 'ArrowUp' ? 'forward' : 'backward'); } return;
-            }
+            
             if(e.key === 'ArrowUp' || e.key === 'ArrowRight') handleNav('forward');
             else if(e.key === 'ArrowDown' || e.key === 'ArrowLeft') handleNav('backward');
         });
