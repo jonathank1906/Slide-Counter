@@ -57,6 +57,10 @@
         .tool-btn.active { background: #444; color: #fff; border-color: #666; font-weight: bold; }
         #export-btn { border-color: #4CAF50; color: #4CAF50; }
         #export-btn:hover { background: #1b331c; }
+        #save-as-btn { border-color: #00bcd4; color: #00bcd4; margin-top: 5px; }
+        #save-as-btn:hover { background: #003333; }
+        #open-btn { border-color: #2196F3; color: #2196F3; }
+        #open-btn:hover { background: #0d2b42; }
         #panic-btn { border-color: #ff4444; color: #ff4444; margin-top:10px; }
         #panic-btn:hover { background: #330000; }
         #sync-btn { border-color: #00bcd4; color: #00bcd4; margin-top:10px; }
@@ -132,8 +136,18 @@
             </div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
             <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf" autocomplete="off"></div>
-            <div class="control-group"><label style="color:orange;">2. Import Notes (JSON)</label><input type="file" id="json-upload" accept=".json" autocomplete="off"></div>
-            <div class="control-group"><button id="export-btn" class="action-btn" onclick="exportNotes()">3. Save/Export Notes</button></div>
+            
+            <div class="control-group">
+                <label style="color:orange;">2. Import Notes</label>
+                <button id="open-btn" class="action-btn" onclick="openNotesEditable()">📂 Open (Keep Saved Link)</button>
+                <div style="font-size:10px; color:#666; margin-top:2px;">OR</div>
+                <input type="file" id="json-upload" accept=".json" autocomplete="off">
+            </div>
+
+            <div class="control-group">
+                <button id="export-btn" class="action-btn" onclick="saveNotes()">💾 Save (Instant)</button>
+                <button id="save-as-btn" class="action-btn" onclick="saveNotesAs()">Save As New File...</button>
+            </div>
             <div class="control-group"><button id="panic-btn" class="action-btn" onclick="recoverLostText()">🆘 Restore Lost Text</button></div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
             <div class="control-group"><label>Number Size</label><input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)"></div>
@@ -211,6 +225,9 @@
         
         // PANIC RECOVERY (RAM ONLY)
         let emergencyBackup = ""; 
+
+        // FILE HANDLE FOR DIRECT SAVING
+        let fileHandle = null;
 
         // Drawing Vars
         let isDrawing = false; 
@@ -574,12 +591,85 @@
         }
         function clearSearch() { searchInput.value = ""; performSearch(); searchInput.blur(); }
 
+        // --- NEW SAVE LOGIC (FILE SYSTEM ACCESS) ---
+        async function openNotesEditable() {
+            if (!window.showOpenFilePicker) { alert("Your browser doesn't support Smart Open. Use standard Import below."); return; }
+            try {
+                [fileHandle] = await window.showOpenFilePicker({
+                    types: [{ description: 'JSON Notes', accept: {'application/json': ['.json']} }],
+                });
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+                loadImportedData(text);
+                document.getElementById('export-btn').textContent = "💾 Save (Instant)";
+            } catch(e) { console.error("Open cancelled", e); }
+        }
+
+        async function saveNotes() {
+            const content = JSON.stringify(state);
+            if (fileHandle) {
+                try {
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    const btn = document.getElementById('export-btn');
+                    const orig = btn.textContent;
+                    btn.textContent = "✅ Saved!";
+                    setTimeout(() => btn.textContent = orig, 2000);
+                    return;
+                } catch(e) { console.error("Save failed", e); fileHandle = null; }
+            }
+            saveNotesAs();
+        }
+
+        async function saveNotesAs() {
+            const content = JSON.stringify(state);
+            if (window.showSaveFilePicker) {
+                try {
+                    const date = new Date().toISOString().slice(0,10);
+                    fileHandle = await window.showSaveFilePicker({
+                        suggestedName: `lecture_notes_${date}.json`,
+                        types: [{ description: 'JSON File', accept: {'application/json': ['.json']} }],
+                    });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(content);
+                    await writable.close();
+                    document.getElementById('export-btn').textContent = "💾 Save (Instant)";
+                    return;
+                } catch(e) { if(e.name !== 'AbortError') alert("Save failed. Using download fallback."); }
+            }
+            exportNotes(); 
+        }
+
+        // Old fallback method
         function exportNotes() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
             const date = new Date().toISOString().slice(0,10); downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
             document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
         }
+
+        function loadImportedData(jsonString) {
+            try {
+                let imported = JSON.parse(jsonString);
+                if (imported.memory && (!imported.slides || imported.slides.length === 0)) {
+                    imported.slides = [];
+                    const indices = Object.keys(imported.memory).map(Number).sort((a,b)=>a-b);
+                    const maxIdx = indices.length > 0 ? indices[indices.length-1] : 0;
+                    for(let i=0; i<=maxIdx; i++) {
+                        const d = imported.memory[i] || {};
+                        imported.slides.push({ type: 'pdf', pdfPage: i+1, header: d.header||"", notes: d.notes||"", drawings: d.drawings||[] });
+                    }
+                    if(imported.count !== undefined) imported.count++;
+                }
+                state = imported;
+                if(state.count < 1) state.count = 1;
+                historyStacks = {}; 
+                updateDisplay();
+                if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
+            } catch(err) { alert("Error reading JSON"); }
+        }
+
         function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; location.reload(); } }
 
         function toggleMenu() { controlsPanel.classList.toggle('active'); if(controlsPanel.classList.contains('active')) setTimeout(()=>searchInput.focus(),100); }
@@ -632,24 +722,7 @@
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(event) {
-                try {
-                    let imported = JSON.parse(event.target.result);
-                    if (imported.memory && (!imported.slides || imported.slides.length === 0)) {
-                        imported.slides = [];
-                        const indices = Object.keys(imported.memory).map(Number).sort((a,b)=>a-b);
-                        const maxIdx = indices.length > 0 ? indices[indices.length-1] : 0;
-                        for(let i=0; i<=maxIdx; i++) {
-                            const d = imported.memory[i] || {};
-                            imported.slides.push({ type: 'pdf', pdfPage: i+1, header: d.header||"", notes: d.notes||"", drawings: d.drawings||[] });
-                        }
-                        if(imported.count !== undefined) imported.count++;
-                    }
-                    state = imported;
-                    if(state.count < 1) state.count = 1;
-                    historyStacks = {}; 
-                    updateDisplay();
-                    if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
-                } catch(err) { alert("Error reading JSON"); }
+                loadImportedData(event.target.result);
             };
             reader.readAsText(file);
             e.target.value = '';
