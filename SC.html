@@ -21,6 +21,10 @@
         #slideLabel:focus { border-bottom: 1px solid #fff; }
         #pdf-render-container { display: none; justify-content: center; align-items: center; width: 100%; height: 30vh; position: relative; transition: height 0.1s ease; }
         #the-canvas { max-height: 100%; max-width: 80%; border: 1px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); position: absolute; z-index: 1; }
+        
+        /* CLASSIC INVERT (Sumatra Style) */
+        #the-canvas.inverted { filter: invert(1); }
+
         #draw-canvas { max-height: 100%; max-width: 80%; position: absolute; z-index: 2; touch-action: none; pointer-events: none; }
         #draw-canvas.active { pointer-events: auto; border: 1px dashed rgba(255, 255, 255, 0.2); }
         #no-pdf-msg { color: #444; font-style: italic; position: absolute; font-size: 14px; z-index: 0; }
@@ -914,6 +918,11 @@
                 if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); handleNav('backward'); return; }
             }
             if (document.activeElement === editor || document.activeElement === searchInput) return;
+            // NEW: 'i' Key for Dark Mode
+            if (e.key === 'i' && !isEditorActive) {
+                pdfCanvas.classList.toggle('inverted');
+                return;
+            }
             if (document.activeElement === slideLabel) {
                  if (['ArrowUp','ArrowDown'].includes(e.key)) { e.preventDefault(); handleNav(e.key === 'ArrowUp' ? 'forward' : 'backward'); } return;
             }
