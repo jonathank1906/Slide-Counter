@@ -205,6 +205,10 @@
         const searchInput = document.getElementById('search-input');
         const searchCount = document.getElementById('search-count');
 
+        // OFFLINE BUFFER FOR SEAMLESS RENDERING
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+
         try {
             marked.setOptions({
                 highlight: function(code, lang) {
@@ -375,12 +379,14 @@
             updateDisplay(); 
         }
 
+        // --- SEAMLESS RENDER PAGE LOGIC ---
         function renderPage() {
             if (pdfContainer.clientHeight === 0) return; 
             if (renderTask) renderTask.cancel();
             const slide = state.slides[state.count - 1];
             
             if (!slide || slide.type === 'blank') {
+                // If blank/non-PDF, clear immediately
                 if(isPageRendering) {
                     if(renderTask) { renderTask.cancel(); renderTask = null; }
                     isPageRendering = false; pageNumPending = null;
@@ -394,6 +400,7 @@
             const pageNum = slide.pdfPage || state.count;
             if(pageNum > pdfDoc.numPages) { pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height); return; }
 
+            // If busy, queue it
             if (isPageRendering) {
                 pageNumPending = pageNum;
                 if (renderTask) { renderTask.cancel(); }
@@ -406,15 +413,27 @@
                 const unscaledViewport = page.getViewport({scale: 1});
                 const scale = containerHeight / unscaledViewport.height;
                 const viewport = page.getViewport({scale: scale});
-                pdfCanvas.height = viewport.height; pdfCanvas.width = viewport.width;
-                resizeDrawLayer();
+                
+                // Set offscreen canvas to match required size
+                offscreenCanvas.height = viewport.height;
+                offscreenCanvas.width = viewport.width;
 
-                const renderContext = { canvasContext: pdfCtx, viewport: viewport };
+                // Render to OFFSCREEN context
+                const renderContext = { canvasContext: offscreenCtx, viewport: viewport };
                 renderTask = page.render(renderContext);
 
                 renderTask.promise.then(function() {
                     isPageRendering = false;
-                    if (pageNumPending !== null) { pageNumPending = null; renderPage(); }
+                    if (pageNumPending !== null) { 
+                        pageNumPending = null; 
+                        renderPage(); 
+                    } else {
+                        // SUCCESS: Swap buffer to screen
+                        pdfCanvas.height = offscreenCanvas.height;
+                        pdfCanvas.width = offscreenCanvas.width;
+                        pdfCtx.drawImage(offscreenCanvas, 0, 0);
+                        resizeDrawLayer();
+                    }
                 }).catch(function(err) {
                     isPageRendering = false;
                     if (err.name === 'RenderingCancelledException') {
@@ -613,7 +632,7 @@
                 loadImportedData(text);
                 document.getElementById('export-btn').textContent = "💾 Save (Instant)";
                 
-                // AUTO-START TIMER IF BOX IS CHECKED
+                // AUTO-START TIMER IF BOX IS CHECKED (It is checked by default now)
                 if (document.getElementById('autosave-toggle').checked) {
                     startAutoSave();
                 }
@@ -686,12 +705,13 @@
             if (autoSaveInterval) { clearInterval(autoSaveInterval); autoSaveInterval = null; }
             
             if (isChecked) {
-                if (!fileHandle) {
-                    alert("Auto-save is enabled but waiting for a file. Please 'Open' or 'Save As' to start saving.");
-                    return;
+                if (fileHandle) {
+                    startAutoSave();
+                    alert("Auto-save started.");
+                } else {
+                    // It is checked by default, so we don't alert if no file yet.
+                    // It will start automatically when file is loaded.
                 }
-                startAutoSave();
-                alert("Auto-save started.");
             }
         }
 
@@ -848,7 +868,7 @@
             }
         });
 
-        // --- MOUSE WHEEL NAVIGATION (NEW) ---
+        // --- MOUSE WHEEL NAVIGATION (NEW: 30ms throttle) ---
         let lastScrollTime = 0;
         document.addEventListener('wheel', (e) => {
             const notesDiv = document.getElementById('notes-wrapper');
@@ -856,7 +876,7 @@
             if (notesDiv.contains(e.target)) return;
 
             const now = Date.now();
-            // Throttling 30ms
+            // Throttling 30ms for faster scroll
             if (now - lastScrollTime < 30) return;
 
             if (e.deltaY > 0) {
