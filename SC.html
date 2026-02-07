@@ -58,20 +58,20 @@
             font-size: 13px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             display: flex; align-items: center; gap: 10px;
         }
-        .toc-item:hover { background: #222; color: #fff; }
-        .toc-item.current { background: #0d2b42; color: #2196F3; border-left: 3px solid #2196F3; }
+        .toc-item:hover { background: #333; color: #fff; }
+        .toc-item.current { background: #333; color: #fff; border-left: 3px solid #fff; }
         
         /* STANDARD NUMBER */
         .toc-num { font-weight: bold; min-width: 25px; text-align: right; }
 
         /* GRAYSCALE FRIENDLY: CIRCLE STYLE FOR NOTES */
         .toc-item.is-note .toc-num {
-            background: #e0e0e0;
+            background: #ddd;
             color: #000;
             border-radius: 50%;
             width: 22px;
             height: 22px;
-            min-width: 22px; /* Prevent squishing */
+            min-width: 22px; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -79,7 +79,6 @@
             font-size: 11px;
             margin-right: 3px;
         }
-        /* Reset note text color to standard (since we rely on the circle now) */
         .toc-item.is-note { color: #aaa; } 
         .toc-item.is-note:hover { color: #fff; }
 
@@ -102,61 +101,67 @@
         #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
         #slideNotesPreview ul, #slideNotesPreview ol { padding-left: 25px; margin-bottom: 10px; }
         #slideNotesPreview p { margin-bottom: 10px; }
-        #slideNotesPreview blockquote { border-left: 4px solid #4CAF50; margin: 10px 0; padding-left: 15px; color: #aaa; font-style: italic; background: #111; padding: 5px;}
-        #slideNotesPreview a { color: #58a6ff; text-decoration: none; }
-        mark { background-color: #ffeb3b; color: black; border-radius: 2px; padding: 0 2px; font-weight: bold; }
+        #slideNotesPreview blockquote { border-left: 4px solid #888; margin: 10px 0; padding-left: 15px; color: #aaa; font-style: italic; background: #111; padding: 5px;}
+        #slideNotesPreview a { color: #fff; text-decoration: underline; }
+        mark { background-color: #fff; color: black; border-radius: 2px; padding: 0 2px; font-weight: bold; }
         #slideNotesPreview pre { background: #1e1e1e !important; padding: 10px; border-radius: 6px; overflow-x: auto; border: 1px solid #333; margin: 10px 0; }
         #slideNotesPreview code { font-family: 'Consolas', 'Courier New', monospace; font-size: 15px; }
-        #slideNotesPreview :not(pre) > code { background: #2d2d2d; padding: 2px 5px; border-radius: 4px; color: #d19a66; border: 1px solid #444; }
+        #slideNotesPreview :not(pre) > code { background: #2d2d2d; padding: 2px 5px; border-radius: 4px; color: #ccc; border: 1px solid #444; }
         #slideNotesPreview table { border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 16px; border: 1px solid #444; }
         #slideNotesPreview th, #slideNotesPreview td { border: 1px solid #444; padding: 8px 12px; text-align: left; }
         #slideNotesPreview th { background-color: #222; color: #fff; font-weight: bold; }
         #slideNotesPreview tr:nth-child(even) { background-color: #111; }
         #slideNotesPreview tr:nth-child(odd) { background-color: #161616; }
         
-        /* --- SETTINGS MENU --- */
+        /* --- SETTINGS MENU (GRAYSCALE OPTIMIZED) --- */
         #menu-container { position: absolute; top: 10px; left: 10px; z-index: 100; }
         #gear-btn { background: transparent; color: #555; border: none; font-size: 24px; cursor: pointer; padding: 5px; transition: color 0.2s; }
         #gear-btn:hover { color: #fff; }
+        
         #controls-panel { display: none; margin-top: 5px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333; flex-direction: column; gap: 15px; width: 300px; }
         #controls-panel.active { display: flex; }
-        button.action-btn { padding: 8px; font-size: 12px; cursor: pointer; background: #000; color: #ddd; border: 1px solid #444; border-radius: 4px; }
-        button.action-btn:hover { background: #222; }
+        
+        /* GENERIC BUTTON STYLES (MONOCHROME) */
+        button { font-family: inherit; }
+        button.action-btn, .slide-ops button, .search-nav-btn, #clear-search-btn {
+            padding: 8px; font-size: 12px; cursor: pointer; 
+            background: #000; color: #ccc; 
+            border: 1px solid #444; border-radius: 4px;
+            transition: all 0.1s;
+        }
+        button.action-btn:hover, .slide-ops button:hover, .search-nav-btn:hover {
+            background: #333; color: #fff; border-color: #888;
+        }
+        
+        /* TOOLBAR */
         .toolbar { display: flex; gap: 5px; background: #222; padding: 5px; border-radius: 5px; }
-        .tool-btn { flex: 1; padding: 5px; font-size: 11px; cursor: pointer; background: #111; color: #888; border: 1px solid #444; border-radius: 3px; }
-        .tool-btn.active { background: #444; color: #fff; border-color: #666; font-weight: bold; }
-        #export-btn { border-color: #4CAF50; color: #4CAF50; }
-        #export-btn:hover { background: #1b331c; }
-        #save-as-btn { border-color: #00bcd4; color: #00bcd4; margin-top: 5px; }
-        #save-as-btn:hover { background: #003333; }
-        #open-btn { border-color: #2196F3; color: #2196F3; }
-        #open-btn:hover { background: #0d2b42; }
-        #panic-btn { border-color: #ff4444; color: #ff4444; margin-top:10px; }
-        #panic-btn:hover { background: #330000; }
-        #sync-btn { border-color: #00bcd4; color: #00bcd4; margin-top:10px; }
-        #sync-btn:hover { background: #003333; }
+        .tool-btn { flex: 1; padding: 5px; font-size: 11px; cursor: pointer; background: #000; color: #888; border: 1px solid #444; border-radius: 3px; }
+        .tool-btn:hover { background: #333; color: #fff; }
+        /* Active Tool = White Background, Black Text */
+        .tool-btn.active { background: #ddd; color: #000; border-color: #fff; font-weight: bold; }
+        
+        /* SEARCH */
         .search-group { display: flex; gap: 5px; align-items: center; }
         #search-input { flex: 1; background: #000; border: 1px solid #444; color: white; padding: 6px; font-size: 12px; border-radius: 4px; outline: none; }
-        #search-input:focus { border-color: #4CAF50; }
-        .search-nav-btn { background: #222; border: 1px solid #444; color: #aaa; cursor: pointer; padding: 6px 10px; border-radius: 4px; font-size: 12px; }
-        .search-nav-btn:hover { background: #333; color: white; }
+        #search-input:focus { border-color: #888; }
         #search-count { font-size: 10px; color: #666; min-width: 40px; text-align: center; }
-        #clear-search-btn { background: transparent; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 0 5px; }
-        #clear-search-btn:hover { color: #ff4444; }
+        #clear-search-btn { border: none; font-size: 14px; padding: 0 5px; }
+        #clear-search-btn:hover { color: #fff; }
+        
         .slide-ops { display: flex; gap: 5px; }
-        .slide-ops button { flex:1; padding: 6px; font-size: 10px; cursor: pointer; border: 1px solid #444; background: #111; color: #ccc; border-radius: 3px; }
-        .slide-ops button:hover { background: #333; color: white; }
-        .del-btn { color: #ff6666 !important; border-color: #552222 !important; }
-        .del-btn:hover { background: #330000 !important; }
+        
+        /* INPUTS & LABELS */
         .control-group { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 12px; color: #888; }
+        label { font-size: 12px; color: #888; } /* Standard gray labels */
         input[type=range] { width: 100%; cursor: pointer; accent-color: #888; }
         input[type=file] { font-size: 12px; color: #aaa; }
+        
         #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
-        #clear-data-btn { color: #ff4444; border-color: #552222; }
         .empty-placeholder { color: #444; font-style: italic; }
+        
+        /* CHECKBOX */
         .checkbox-container { display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
-        .checkbox-container input { margin-right: 8px; cursor: pointer; }
+        .checkbox-container input { margin-right: 8px; cursor: pointer; accent-color: #888; }
         .checkbox-text { font-size: 12px; color: #ccc; }
     </style>
 </head>
@@ -177,7 +182,7 @@
             </div>
             
             <div class="control-group">
-                <label style="color:#aaa;">Slide Manager</label>
+                <label>Slide Manager</label>
                 <div class="slide-ops">
                     <button onclick="insertSlide(-1)">+ Blank Before</button>
                     <button onclick="insertSlide(1)">+ Blank After</button>
@@ -185,7 +190,7 @@
                 <div class="slide-ops">
                     <button class="del-btn" onclick="deleteCurrentSlide()">Delete Current</button>
                 </div>
-                <label style="color:#aaa; margin-top:5px;">Shift Content (Fix Offset)</label>
+                <label style="margin-top:5px;">Shift Content (Fix Offset)</label>
                 <div class="slide-ops">
                     <button onclick="shiftContent(-1)" title="Moves text from Slide 2 to Slide 1">▲ Shift Up</button>
                     <button onclick="shiftContent(1)" title="Moves text from Slide 1 to Slide 2">▼ Shift Down</button>
@@ -194,7 +199,7 @@
             </div>
 
             <div class="control-group">
-                <label style="color:#4CAF50;">Search (Ctrl+F)</label>
+                <label>Search (Ctrl+F)</label>
                 <div class="search-group">
                     <input type="text" id="search-input" placeholder="Find..." oninput="performSearch()">
                     <button id="clear-search-btn" title="Clear Search" onclick="clearSearch()">✖</button>
@@ -210,14 +215,14 @@
                 <div class="toolbar">
                     <button class="tool-btn active" id="btn-pen" onclick="setTool('pen')">Pen</button>
                     <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">Stroke Eraser</button>
-                    <button class="tool-btn" style="color:#ff6666;" onclick="clearSlideDrawing()">Clear Slide</button>
+                    <button class="tool-btn" onclick="clearSlideDrawing()">Clear Slide</button>
                 </div>
             </div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
-            <div class="control-group"><label style="color:cyan;">1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf" autocomplete="off"></div>
+            <div class="control-group"><label>1. Load Slides (PDF)</label><input type="file" id="pdf-upload" accept=".pdf" autocomplete="off"></div>
             
             <div class="control-group">
-                <label style="color:orange;">2. Import Notes</label>
+                <label>2. Import Notes</label>
                 <button id="open-btn" class="action-btn" onclick="openNotesEditable()">📂 Open (Keep Saved Link)</button>
                 <div style="font-size:10px; color:#666; margin-top:2px;">OR</div>
                 <input type="file" id="json-upload" accept=".json" autocomplete="off">
@@ -281,7 +286,7 @@
         const searchCount = document.getElementById('search-count');
         const sidebar = document.getElementById('sidebar');
         const tocList = document.getElementById('toc-list');
-        const resizer = document.getElementById('resizer'); // New Resizer
+        const resizer = document.getElementById('resizer');
 
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
@@ -423,6 +428,7 @@
 
             const mode = MODES[currentModeIndex];
             
+            // DYNAMIC LAYOUT: Hide PDF container on blank slides
             if (mode === 'PDF') {
                 if (slide.type === 'blank') {
                     pdfContainer.style.display = 'none';
@@ -502,28 +508,15 @@
         }
 
         function renderPage() {
+            // Abort if blank slide (container is hidden by updateDisplay)
+            if (pdfContainer.style.display === 'none') return;
             if (pdfContainer.clientHeight === 0) return; 
+
             if (renderTask) renderTask.cancel();
             const slide = state.slides[state.count - 1];
             
             if (!slide || slide.type === 'blank') {
-                if(isPageRendering) {
-                    if(renderTask) { renderTask.cancel(); renderTask = null; }
-                    isPageRendering = false; pageNumPending = null;
-                }
                 pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
-                // Visual placeholder if needed, though container usually hidden
-                if(pdfCanvas.width < 100) { pdfCanvas.width=800; pdfCanvas.height=450; } 
-                
-                const isDark = pdfCanvas.classList.contains('inverted');
-                pdfCtx.fillStyle = isDark ? '#333' : '#eee';
-                pdfCtx.fillRect(0,0,pdfCanvas.width, pdfCanvas.height);
-                
-                pdfCtx.font = "30px Arial";
-                pdfCtx.fillStyle = isDark ? '#fff' : '#555';
-                pdfCtx.textAlign = "center";
-                pdfCtx.fillText("📝 Additional Notes (Not in PDF)", pdfCanvas.width/2, pdfCanvas.height/2);
-                
                 resizeDrawLayer(); return;
             }
             if (!pdfDoc) return;
