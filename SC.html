@@ -658,6 +658,7 @@
         slideLabel.addEventListener('input', handleInput);
         editor.addEventListener('input', handleInput);
         
+        // CLICK AWAY (BLUR) LISTENER
         editor.addEventListener('blur', function() {
             activatePreview();
         });
@@ -717,6 +718,26 @@
                     const newVal = val.substring(0, start) + prefix + val.substring(end);
                     editor.value = newVal; editor.selectionStart = editor.selectionEnd = start + prefix.length; handleInput();
                 }
+            }
+        });
+
+        // --- MOUSE WHEEL NAVIGATION (NEW) ---
+        let lastScrollTime = 0;
+        document.addEventListener('wheel', (e) => {
+            const notesDiv = document.getElementById('notes-wrapper');
+            // If scrolling inside notes, ignore slide change
+            if (notesDiv.contains(e.target)) return;
+
+            const now = Date.now();
+            // Throttling 30ms
+            if (now - lastScrollTime < 30) return;
+
+            if (e.deltaY > 0) {
+                handleNav('forward');
+                lastScrollTime = now;
+            } else if (e.deltaY < 0) {
+                handleNav('backward');
+                lastScrollTime = now;
             }
         });
 
