@@ -85,6 +85,10 @@
         #mode-status { color: #aaa; font-size: 12px; font-weight: bold; }
         #clear-data-btn { color: #ff4444; border-color: #552222; }
         .empty-placeholder { color: #444; font-style: italic; }
+        /* Auto Save Checkbox Style */
+        .checkbox-container { display: flex; align-items: center; margin-top: 5px; cursor: pointer; }
+        .checkbox-container input { margin-right: 8px; cursor: pointer; }
+        .checkbox-text { font-size: 12px; color: #ccc; }
     </style>
 </head>
 <body>
@@ -147,6 +151,11 @@
             <div class="control-group">
                 <button id="export-btn" class="action-btn" onclick="saveNotes()">💾 Save (Instant)</button>
                 <button id="save-as-btn" class="action-btn" onclick="saveNotesAs()">Save As New File...</button>
+                
+                <label class="checkbox-container">
+                    <input type="checkbox" id="autosave-toggle" onchange="toggleAutoSave()" checked>
+                    <span class="checkbox-text">Enable Auto-Save (Every 2 min)</span>
+                </label>
             </div>
             <div class="control-group"><button id="panic-btn" class="action-btn" onclick="recoverLostText()">🆘 Restore Lost Text</button></div>
             <hr style="width:100%; border:0; border-top:1px solid #333;">
@@ -226,8 +235,9 @@
         // PANIC RECOVERY (RAM ONLY)
         let emergencyBackup = ""; 
 
-        // FILE HANDLE FOR DIRECT SAVING
+        // FILE HANDLE & AUTO-SAVE
         let fileHandle = null;
+        let autoSaveInterval = null;
 
         // Drawing Vars
         let isDrawing = false; 
@@ -602,6 +612,11 @@
                 const text = await file.text();
                 loadImportedData(text);
                 document.getElementById('export-btn').textContent = "💾 Save (Instant)";
+                
+                // AUTO-START TIMER IF BOX IS CHECKED
+                if (document.getElementById('autosave-toggle').checked) {
+                    startAutoSave();
+                }
             } catch(e) { console.error("Open cancelled", e); }
         }
 
@@ -612,14 +627,24 @@
                     const writable = await fileHandle.createWritable();
                     await writable.write(content);
                     await writable.close();
+                    
                     const btn = document.getElementById('export-btn');
-                    const orig = btn.textContent;
-                    btn.textContent = "✅ Saved!";
-                    setTimeout(() => btn.textContent = orig, 2000);
+                    // Only flash visual feedback if NOT triggered by auto-save
+                    if (!arguments[0]) { 
+                        const orig = btn.textContent;
+                        btn.textContent = "✅ Saved!";
+                        setTimeout(() => btn.textContent = orig, 2000);
+                    } else {
+                        // Subtle feedback for auto-save
+                        const orig = btn.textContent;
+                        btn.textContent = "✅ Auto-Saved";
+                        setTimeout(() => btn.textContent = orig, 1000);
+                    }
                     return;
                 } catch(e) { console.error("Save failed", e); fileHandle = null; }
             }
-            saveNotesAs();
+            // If no handle and this wasn't an auto-save call, prompt user
+            if (!arguments[0]) saveNotesAs();
         }
 
         async function saveNotesAs() {
@@ -635,10 +660,39 @@
                     await writable.write(content);
                     await writable.close();
                     document.getElementById('export-btn').textContent = "💾 Save (Instant)";
+                    
+                    // AUTO-START TIMER IF BOX IS CHECKED
+                    if (document.getElementById('autosave-toggle').checked) {
+                        startAutoSave();
+                    }
+                    
                     return;
                 } catch(e) { if(e.name !== 'AbortError') alert("Save failed. Using download fallback."); }
             }
             exportNotes(); 
+        }
+
+        function startAutoSave() {
+            if (autoSaveInterval) clearInterval(autoSaveInterval);
+            autoSaveInterval = setInterval(() => {
+                saveNotes(true);
+            }, 120000); // 2 minutes
+            console.log("Auto-save timer started");
+        }
+
+        function toggleAutoSave() {
+            const isChecked = document.getElementById('autosave-toggle').checked;
+            
+            if (autoSaveInterval) { clearInterval(autoSaveInterval); autoSaveInterval = null; }
+            
+            if (isChecked) {
+                if (!fileHandle) {
+                    alert("Auto-save is enabled but waiting for a file. Please 'Open' or 'Save As' to start saving.");
+                    return;
+                }
+                startAutoSave();
+                alert("Auto-save started.");
+            }
         }
 
         // Old fallback method
