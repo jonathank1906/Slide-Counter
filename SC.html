@@ -241,7 +241,7 @@
             <hr style="width:100%; border:0; border-top:1px solid #333;">
             <div class="control-group"><label>Number Size</label><input type="range" min="20" max="120" value="80" oninput="updateNumberSize(this.value)"></div>
             <div class="control-group"><label>Text Size</label><input type="range" min="12" max="60" value="18" oninput="updateTextSize(this.value)"></div>
-            <div class="control-group"><label>PDF Preview Size</label><input type="range" min="10" max="60" value="30" oninput="updatePdfSize(this.value)" onchange="refreshPdfResolution()"></div>
+            <div class="control-group"><label>PDF Preview Size</label><input type="range" min="10" max="90" value="30" oninput="updatePdfSize(this.value)" onchange="refreshPdfResolution()"></div>
             <button id="clear-data-btn" class="action-btn" onclick="clearAllData()">Reset All</button>
         </div>
     </div>
@@ -428,7 +428,6 @@
 
             const mode = MODES[currentModeIndex];
             
-            // DYNAMIC LAYOUT: Hide PDF container on blank slides
             if (mode === 'PDF') {
                 if (slide.type === 'blank') {
                     pdfContainer.style.display = 'none';
@@ -508,15 +507,28 @@
         }
 
         function renderPage() {
-            // Abort if blank slide (container is hidden by updateDisplay)
-            if (pdfContainer.style.display === 'none') return;
             if (pdfContainer.clientHeight === 0) return; 
-
             if (renderTask) renderTask.cancel();
             const slide = state.slides[state.count - 1];
             
             if (!slide || slide.type === 'blank') {
+                if(isPageRendering) {
+                    if(renderTask) { renderTask.cancel(); renderTask = null; }
+                    isPageRendering = false; pageNumPending = null;
+                }
                 pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+                // Visual placeholder
+                if(pdfCanvas.width < 100) { pdfCanvas.width=800; pdfCanvas.height=450; } 
+                
+                const isDark = pdfCanvas.classList.contains('inverted');
+                pdfCtx.fillStyle = isDark ? '#333' : '#eee';
+                pdfCtx.fillRect(0,0,pdfCanvas.width, pdfCanvas.height);
+                
+                pdfCtx.font = "30px Arial";
+                pdfCtx.fillStyle = isDark ? '#fff' : '#555';
+                pdfCtx.textAlign = "center";
+                pdfCtx.fillText("📝 Additional Notes (Not in PDF)", pdfCanvas.width/2, pdfCanvas.height/2);
+                
                 resizeDrawLayer(); return;
             }
             if (!pdfDoc) return;
@@ -1026,6 +1038,8 @@
             // FIXED HEADER TYPING BUG
             if (document.activeElement === slideLabel) {
                  if (['ArrowUp','ArrowDown'].includes(e.key)) { e.preventDefault(); handleNav(e.key === 'ArrowUp' ? 'forward' : 'backward'); } 
+                 // ADDED MISSING HEADER ENTER BEHAVIOR
+                 if (e.key === 'Enter') { e.preventDefault(); document.activeElement.blur(); }
                  return; 
             }
 
