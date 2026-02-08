@@ -53,10 +53,7 @@
         #notes-wrapper::-webkit-scrollbar { width: 10px; }
         #notes-wrapper::-webkit-scrollbar-track { background: #111; }
         #notes-wrapper::-webkit-scrollbar-thumb { background: #333; border-radius: 5px; }
-        
-        /* EDITOR FIX: Overflow hidden prevents scrollbar on textarea, forces wrapper to scroll */
         #slideNotesEditor { width: 100%; min-height: 100%; background: transparent; border: none; color: #aaa; font-size: 18px; text-align: left; outline: none; font-family: 'Consolas', 'Courier New', monospace; resize: none; line-height: 1.6; display: none; tab-size: 4; overflow: hidden; }
-        
         #slideNotesPreview { width: 100%; min-height: 100%; color: #ddd; font-size: 18px; line-height: 1.6; display: block; cursor: text; }
         #slideNotesPreview h1, #slideNotesPreview h2, #slideNotesPreview h3 { color: #fff; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
         #slideNotesPreview ul, #slideNotesPreview ol { padding-left: 25px; margin-bottom: 10px; }
@@ -253,7 +250,7 @@
         const rearrangeOverlay = document.getElementById('rearrange-overlay');
         const rearrangeGrid = document.getElementById('rearrange-grid');
         const lastSavedDiv = document.getElementById('last-saved');
-        
+
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
 
@@ -745,7 +742,11 @@
                 for(let i=1; i<path.points.length; i++) { const p = toPixel(path.points[i].x, path.points[i].y); drawCtx.lineTo(p.x, p.y); } drawCtx.stroke();
             });
         }
-        function resizeDrawLayer() { drawCanvas.width = pdfCanvas.width; drawCanvas.height = pdfCanvas.height; renderDrawings(); }
+        function resizeDrawLayer() { 
+            drawCanvas.width = pdfCanvas.width; 
+            drawCanvas.height = pdfCanvas.height; 
+            renderDrawings(); 
+        }
         function endAction() { if(isDrawing) { isDrawing = false; saveDrawingsToState(); } if(isErasing) isErasing = false; }
 
         function insertSlide(offset) {
@@ -977,6 +978,14 @@
         document.getElementById('pdf-upload').value = '';
         document.getElementById('json-upload').value = '';
         window.addEventListener('beforeunload', function (e) { if (checkIfDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+        // Add CTRL+S Support
+        window.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveNotes();
+            }
+        });
 
         document.getElementById('pdf-upload').addEventListener('change', function(e) {
             const file = e.target.files[0];
