@@ -275,6 +275,9 @@
         let currentMatchPos = -1;
         let timeoutHandle = null;
         let isEditorActive = false;
+        
+        // DIRTY FLAG FOR SAVING
+        let isDirty = false;
 
         let historyStacks = {}; 
         let saveTimeout = null;
@@ -334,15 +337,6 @@
             } else { alert("No lost text found in memory."); }
         }
 
-        function checkIfDirty() {
-            if (state.slides.length > 1) return true; 
-            const s = state.slides[0];
-            if (s.header && s.header.trim() !== "") return true;
-            if (s.notes && s.notes.trim() !== "") return true;
-            if (s.drawings && s.drawings.length > 0) return true;
-            return false;
-        }
-
         function saveData() { /* Memory Only */ }
 
         // AUTO-RESIZE TEXTAREA LOGIC
@@ -354,6 +348,9 @@
         function handleInput() {
             const idx = state.count - 1;
             const newText = editor.value;
+            
+            // Mark as dirty
+            isDirty = true;
             
             // Auto Resize height
             autoResizeTextarea();
@@ -555,6 +552,8 @@
                 tgtSlide.header = tempHeader;
                 tgtSlide.notes = tempNotes;
                 tgtSlide.drawings = tempDrawings;
+                
+                isDirty = true; // Changes made
                 saveData();
                 renderRearrangeGrid();
             }
@@ -703,7 +702,7 @@
         function clearSlideDrawing() {
             if(confirm("Clear drawings?")) {
                 const s = state.slides[state.count - 1];
-                if (s) { s.drawings = []; saveData(); renderDrawings(); }
+                if (s) { s.drawings = []; isDirty = true; saveData(); renderDrawings(); }
             }
         }
         function toNorm(x, y) { return { x: x / drawCanvas.width, y: y / drawCanvas.height }; }
@@ -722,7 +721,12 @@
                     return Math.hypot(pPx.x - pos.x, pPx.y - pos.y) < 25;
                 });
             });
-            if(remaining.length !== drawings.length) { slide.drawings = remaining; saveData(); renderDrawings(); }
+            if(remaining.length !== drawings.length) { 
+                slide.drawings = remaining; 
+                isDirty = true; 
+                saveData(); 
+                renderDrawings(); 
+            }
         }
         function saveDrawingsToState() {
             const slide = state.slides[state.count - 1];
@@ -747,7 +751,7 @@
             drawCanvas.height = pdfCanvas.height; 
             renderDrawings(); 
         }
-        function endAction() { if(isDrawing) { isDrawing = false; saveDrawingsToState(); } if(isErasing) isErasing = false; }
+        function endAction() { if(isDrawing) { isDrawing = false; isDirty = true; saveDrawingsToState(); } if(isErasing) isErasing = false; }
 
         function insertSlide(offset) {
             handleInput();
@@ -755,6 +759,7 @@
             let insertIndex = (offset === 1) ? state.count : state.count - 1;
             state.slides.splice(insertIndex, 0, newSlide);
             if (offset === 1) state.count++; 
+            isDirty = true;
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
@@ -763,6 +768,7 @@
             if (!confirm("Delete current slide?")) return;
             state.slides.splice(state.count - 1, 1);
             if (state.count > state.slides.length) state.count = state.slides.length;
+            isDirty = true;
             updateDisplay();
             if (MODES[currentModeIndex] === 'PDF') renderPage();
         }
@@ -780,6 +786,7 @@
                 }
             }
             if (state.count > state.slides.length) state.count = state.slides.length;
+            isDirty = true;
             updateDisplay();
             renderPage();
         }
@@ -797,6 +804,7 @@
                     else { state.slides[i].notes = state.slides[i+1].notes; state.slides[i].drawings = state.slides[i+1].drawings; state.slides[i].header = state.slides[i+1].header; }
                 }
             }
+            isDirty = true;
             updateDisplay();
         }
 
@@ -862,6 +870,7 @@
                         btn.textContent = "✅ Auto-Saved";
                         setTimeout(() => btn.textContent = orig, 1000);
                     }
+                    isDirty = false; // CLEAN STATE
                     updateSaveTime();
                     return;
                 } catch(e) { console.error("Save failed", e); fileHandle = null; }
@@ -882,7 +891,9 @@
                     await writable.write(content);
                     await writable.close();
                     document.getElementById('export-btn').textContent = "💾 Save (Instant)";
+                    
                     if (document.getElementById('autosave-toggle').checked) startAutoSave();
+                    isDirty = false; // CLEAN STATE
                     updateSaveTime();
                     return;
                 } catch(e) { if(e.name !== 'AbortError') alert("Save failed. Using download fallback."); }
@@ -910,6 +921,7 @@
             const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr);
             const date = new Date().toISOString().slice(0,10); downloadAnchorNode.setAttribute("download", "lecture_notes_" + date + ".json");
             document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
+            isDirty = false;
         }
         function loadImportedData(jsonString) {
             try {
@@ -927,11 +939,12 @@
                 state = imported;
                 if(state.count < 1) state.count = 1;
                 historyStacks = {}; 
+                isDirty = false; // Reset Dirty flag on load
                 updateDisplay();
                 if(pdfDoc && MODES[currentModeIndex] === 'PDF') renderPage();
             } catch(err) { alert("Error reading JSON"); }
         }
-        function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; location.reload(); } }
+        function clearAllData() { if(confirm("Reset all?")) { state = { count: 1, slides: [] }; isDirty = false; location.reload(); } }
         function toggleMenu() { controlsPanel.classList.toggle('active'); if(controlsPanel.classList.contains('active')) setTimeout(()=>searchInput.focus(),100); }
         function updateNumberSize(val) { display.style.fontSize = val + "px"; }
         function updateTextSize(val) { editor.style.fontSize = val + "px"; preview.style.fontSize = val + "px"; slideLabel.style.fontSize = (val * 1.5) + "px"; }
@@ -977,7 +990,14 @@
         // ==========================================
         document.getElementById('pdf-upload').value = '';
         document.getElementById('json-upload').value = '';
-        window.addEventListener('beforeunload', function (e) { if (checkIfDirty()) { e.preventDefault(); e.returnValue = ''; } });
+        
+        // DIRTY CHECK LISTENER
+        window.addEventListener('beforeunload', function (e) { 
+            if (isDirty) { 
+                e.preventDefault(); 
+                e.returnValue = ''; 
+            } 
+        });
 
         // Add CTRL+S Support
         window.addEventListener('keydown', function(e) {
